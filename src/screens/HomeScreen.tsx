@@ -22,6 +22,17 @@ export const HomeScreen = () => {
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = screenWidth * 0.65; // Make cards take up 65% of screen width
   const [searchQuery, setSearchQuery] = useState('');
+  // Add state for favorite strains
+  const [favoriteStrains, setFavoriteStrains] = useState<string[]>([]);
+
+  // Toggle favorite status for a strain
+  const toggleFavorite = (strainId: string) => {
+    setFavoriteStrains(prev => 
+      prev.includes(strainId) 
+        ? prev.filter(id => id !== strainId) 
+        : [...prev, strainId]
+    );
+  };
 
   // In a real implementation, this would filter data based on the search query
   const handleSearch = () => {
@@ -40,7 +51,22 @@ export const HomeScreen = () => {
         resizeMode="cover"
       />
       <View style={styles.strainInfo}>
-        <Text style={styles.strainName}>{item.name}</Text>
+        <View style={styles.strainNameContainer}>
+          <Text style={styles.strainName}>{item.name}</Text>
+          <TouchableOpacity 
+            style={styles.favoriteButton} 
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleFavorite(item.id);
+            }}
+          >
+            <MaterialCommunityIcons 
+              name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
+              size={24} 
+              color={favoriteStrains.includes(item.id) ? "#FF4081" : "#FFFFFF"} 
+            />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.strainType}>{item.type}</Text>
         <View style={styles.percentages}>
           <Text style={styles.thc}>THC: {item.THC_percentage}%</Text>
@@ -50,34 +76,88 @@ export const HomeScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderReviewCard = ({ item }: { item: Review & { strains: { name: string; type: string } } } ) => (
-    <View style={styles.reviewCard}>
-      <View style={styles.reviewHeader}>
-        <TouchableOpacity 
-          onPress={() => navigation.navigate('UserProfile', { userId: item.user_id })}
-          style={styles.userContainer}
-        >
-          <Image
-            source={{ uri: mockUsers.find(user => user.id === item.user_id)?.avatar_url || 'https://via.placeholder.com/40' }}
-            style={styles.avatar}
-          />
-          <View style={styles.reviewHeaderText}>
-            <Text style={styles.username}>{mockUsers.find(user => user.id === item.user_id)?.username || 'Unknown User'}</Text>
-            <Text style={styles.strainReviewed}>{item.strains.name}</Text>
+  const renderReviewCard = ({ item }: { item: Review & { strains: { name: string; type: string } } } ) => {
+    // State to track if the review is expanded
+    const [expanded, setExpanded] = React.useState(false);
+    
+    // Check if the review text is long enough to need expansion
+    const isLongReview = item.review_text.length > 80;
+    
+    // Get the user data
+    const user = mockUsers.find(user => user.id === item.user_id);
+    
+    return (
+      <View style={styles.reviewCard}>
+        <View style={styles.reviewHeader}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('UserProfile', { userId: item.user_id })}
+            style={styles.userContainer}
+          >
+            {user?.avatar_url ? (
+              <Image
+                source={{ uri: user.avatar_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.initialsAvatar, { backgroundColor: getRandomColor(item.user_id) }]}>
+                <Text style={styles.initialsText}>
+                  {user?.username?.substring(0, 2).toUpperCase() || '??'}
+                </Text>
+              </View>
+            )}
+            <View style={styles.reviewHeaderText}>
+              <Text style={styles.username}>{user?.username || 'Unknown User'}</Text>
+              <Text style={styles.strainReviewed}>{item.strains.name}</Text>
+            </View>
+          </TouchableOpacity>
+          <View style={styles.rating}>
+            <MaterialCommunityIcons name="star" size={16} color="#FFB800" />
+            <Text style={styles.ratingText}>{item.rating}</Text>
           </View>
-        </TouchableOpacity>
-        <View style={styles.rating}>
-          <MaterialCommunityIcons name="star" size={16} color="#FFB800" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
         </View>
+        <TouchableOpacity onPress={() => navigation.navigate('Review', { reviewId: item.id })}>
+          <Text 
+            style={styles.reviewText} 
+            numberOfLines={expanded ? undefined : 2}
+          >
+            {item.review_text}
+          </Text>
+          {isLongReview && (
+            <TouchableOpacity 
+              onPress={(e) => {
+                e.stopPropagation();
+                setExpanded(!expanded);
+              }} 
+              style={styles.readMoreButton}
+            >
+              <Text style={styles.readMoreText}>
+                {expanded ? 'Show Less' : 'Read More'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity onPress={() => navigation.navigate('Review', { reviewId: item.id })}>
-        <Text style={styles.reviewText} numberOfLines={2}>
-          {item.review_text}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
+
+  // Helper function to generate consistent colors based on user ID
+  const getRandomColor = (userId: string) => {
+    // Simple hash function to generate a color from user ID
+    const hash = userId.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    
+    const colors = [
+      '#10B981', // emerald
+      '#7C3AED', // purple
+      '#F59E0B', // amber
+      '#EF4444', // red
+      '#3B82F6', // blue
+      '#EC4899', // pink
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -158,27 +238,40 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#1E1E1E', // Darker card background to match theme
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 }, // Increased shadow offset
+    shadowOpacity: 0.5, // Increased shadow opacity
+    shadowRadius: 10, // Increased shadow radius
+    elevation: 8, // Increased elevation for Android
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)', // Light gray border for contrast
+    borderColor: 'rgba(255,255,255,0.15)', // Slightly more visible border
     height: 280,
+    overflow: 'visible', // Ensure shadow is visible
   },
   strainImage: {
     width: '100%',
     height: 140,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)', // Adding a subtle border to make photo boundaries clearer
   },
   strainInfo: {
     padding: 12,
   },
+  strainNameContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  favoriteButton: {
+    padding: 4,
+  },
   strainName: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 20, // Increased from 18
+    fontWeight: '700', // Increased from 600
     color: '#FFFFFF', // Changed to white for better contrast
+    flex: 1,
   },
   strainType: {
     fontSize: 14,
@@ -200,8 +293,8 @@ const styles = StyleSheet.create({
   },
   cbd: {
     fontSize: 12,
-    color: '#7C3AED',
-    backgroundColor: 'rgba(124, 58, 237, 0.15)', // Semi-transparent background
+    color: '#A78BFA', // Changed from #7C3AED to a lighter purple (#A78BFA)
+    backgroundColor: 'rgba(167, 139, 250, 0.15)', // Updated semi-transparent background to match new color
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -268,5 +361,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E0E0E0', // Light gray for better readability
     lineHeight: 20,
+  },
+  initialsAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialsText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  readMoreButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  readMoreText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
   },
 }); 
