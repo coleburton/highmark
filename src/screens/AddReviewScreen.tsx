@@ -12,7 +12,9 @@ import {
   SafeAreaView,
   Animated,
   TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  Modal,
+  Dimensions
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons, Feather, MaterialIcons } from '@expo/vector-icons';
@@ -39,6 +41,13 @@ const FLAVORS = [
 ];
 
 export const AddReviewScreen = ({ navigation, route }: Props) => {
+  // Add navigation options
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerBackTitle: 'Home',
+    });
+  }, [navigation]);
+
   // State for the review form
   const [selectedStrain, setSelectedStrain] = useState<string | null>(null);
   const [rating, setRating] = useState<number>(0);
@@ -48,12 +57,15 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
   const [photos, setPhotos] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isFocus, setIsFocus] = useState(false);
+  const [selectedStrainDetails, setSelectedStrainDetails] = useState<any>(null);
   const [filteredStrains, setFilteredStrains] = useState(mockStrains.map(strain => ({
     label: strain.name,
     value: strain.id,
     type: strain.type
   })));
   const [scaleAnim] = useState(new Animated.Value(1));
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const dropdownRef = React.useRef<View>(null);
 
   // Filter strains based on search query
   useEffect(() => {
@@ -64,11 +76,10 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
         type: strain.type
       })));
     } else {
-      const query = searchQuery.toLowerCase();
       const filtered = mockStrains
         .filter(strain => 
-          strain.name.toLowerCase().includes(query) || 
-          strain.type.toLowerCase().includes(query)
+          strain.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          strain.type.toLowerCase().includes(searchQuery.toLowerCase())
         )
         .map(strain => ({
           label: strain.name,
@@ -113,8 +124,28 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
   // Handle strain selection
   const handleSelectStrain = (item: any) => {
     setSelectedStrain(item.value);
+    setSelectedStrainDetails(item);
     setSearchQuery(item.label);
     setIsFocus(false);
+  };
+
+  // Render the selected strain value
+  const renderSelectedValue = () => {
+    if (!selectedStrainDetails) return null;
+    
+    return (
+      <View style={styles.selectedValueContainer}>
+        <View style={styles.iconContainer}>
+          <MaterialCommunityIcons 
+            name={selectedStrainDetails.type === 'Sativa' ? 'white-balance-sunny' : 
+                  selectedStrainDetails.type === 'Indica' ? 'moon-waning-crescent' : 'circle-half-full'} 
+            size={24} 
+            color="#10B981" 
+          />
+        </View>
+        <Text style={styles.selectedTextStyle}>{selectedStrainDetails.label}</Text>
+      </View>
+    );
   };
 
   // This function is now mainly used for validation
@@ -223,10 +254,35 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
     ]);
   };
 
+  // Function to measure dropdown position
+  const measureDropdown = () => {
+    if (dropdownRef.current) {
+      dropdownRef.current.measure((x, y, width, height, pageX, pageY) => {
+        console.log('Dropdown measurements:', { x, y, width, height, pageX, pageY });
+        setDropdownPosition({
+          top: pageY + height + 4, // Add small offset
+          left: pageX,
+          width: width
+        });
+      });
+    }
+  };
+
+  // Measure dropdown position when focus changes or when layout changes
+  useEffect(() => {
+    if (isFocus) {
+      // Small delay to ensure layout is complete
+      setTimeout(measureDropdown, 100);
+    }
+  }, [isFocus]);
+
   return (
     <TouchableWithoutFeedback onPress={() => {
-      Keyboard.dismiss();
-      hideResults();
+      if (isFocus) {
+        setIsFocus(false);
+      } else {
+        Keyboard.dismiss();
+      }
     }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.mainContainer}>
@@ -234,55 +290,44 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
             style={styles.scrollView} 
             contentContainerStyle={styles.scrollViewContent}
             keyboardShouldPersistTaps="handled"
+            scrollEnabled={!isFocus}
           >
             <Text style={styles.title}>Add Review</Text>
             
             {/* Strain Selection */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Strain</Text>
-              <Dropdown
-                style={[styles.dropdown, isFocus && { borderColor: '#10B981' }]}
-                placeholderStyle={styles.placeholderStyle}
-                selectedTextStyle={styles.selectedTextStyle}
-                inputSearchStyle={styles.inputSearchStyle}
-                iconStyle={styles.iconStyle}
-                containerStyle={styles.dropdownContainer}
-                data={filteredStrains}
-                search={false}
-                maxHeight={300}
-                labelField="label"
-                valueField="value"
-                placeholder="Search strains..."
-                searchPlaceholder="Search..."
-                value={selectedStrain}
-                onFocus={() => setIsFocus(true)}
-                onBlur={() => setIsFocus(false)}
-                onChange={handleSelectStrain}
-                renderLeftIcon={() => (
-                  <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-                )}
-                renderItem={(item) => (
-                  <View style={styles.dropdownItem}>
-                    <View style={styles.iconContainer}>
-                      <MaterialCommunityIcons 
-                        name={item.type === 'Sativa' ? 'white-balance-sunny' : 
-                              item.type === 'Indica' ? 'moon-waning-crescent' : 'circle-half-full'} 
-                        size={24} 
-                        color="#10B981" 
+              <View 
+                style={styles.dropdownContainer}
+                ref={dropdownRef}
+                onLayout={() => {
+                  if (isFocus) {
+                    measureDropdown();
+                  }
+                }}
+              >
+                <TouchableOpacity 
+                  style={[styles.dropdown, isFocus && { borderColor: '#10B981' }]}
+                  onPress={() => setIsFocus(!isFocus)}
+                >
+                  {selectedStrain ? (
+                    renderSelectedValue()
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                      <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+                      <TextInput
+                        style={[styles.placeholderStyle, { flex: 1 }]}
+                        placeholder="Search strains..."
+                        placeholderTextColor="#9CA3AF"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        onFocus={() => setIsFocus(true)}
                       />
                     </View>
-                    <View style={styles.itemTextContainer}>
-                      <Text style={styles.itemText}>{item.label}</Text>
-                      <Text style={styles.itemSubText}>
-                        {item.type === 'Sativa' ? 'For energy and focus' : 
-                         item.type === 'Indica' ? 'For relaxation and sleep' : 
-                         'Balanced hybrid effects'}
-                      </Text>
-                    </View>
-                    <Text style={styles.itemType}>{item.type}</Text>
-                  </View>
-                )}
-              />
+                  )}
+                  <Feather name={isFocus ? "chevron-up" : "chevron-down"} size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
             </View>
             
             {/* Rating */}
@@ -406,6 +451,76 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
             <View style={styles.buttonSpacer} />
           </ScrollView>
           
+          {/* Modal for dropdown list */}
+          <Modal
+            visible={isFocus}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsFocus(false)}
+            statusBarTranslucent={true}
+          >
+            <TouchableWithoutFeedback onPress={() => setIsFocus(false)}>
+              <View style={styles.modalOverlay}>
+                <TouchableWithoutFeedback>
+                  <View 
+                    style={[
+                      styles.dropdownListContainer,
+                      {
+                        position: 'absolute',
+                        top: dropdownPosition.top,
+                        left: 16,
+                        right: 16,
+                      }
+                    ]}
+                  >
+                    {filteredStrains.length > 0 ? (
+                      <ScrollView 
+                        style={styles.dropdownList}
+                        nestedScrollEnabled={true}
+                        keyboardShouldPersistTaps="handled"
+                        showsVerticalScrollIndicator={true}
+                      >
+                        {filteredStrains.map((item) => (
+                          <TouchableOpacity
+                            key={item.value}
+                            onPress={() => handleSelectStrain(item)}
+                            style={[
+                              styles.dropdownItem,
+                              selectedStrain === item.value && styles.selectedItem
+                            ]}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.iconContainer}>
+                              <MaterialCommunityIcons 
+                                name={item.type === 'Sativa' ? 'white-balance-sunny' : 
+                                      item.type === 'Indica' ? 'moon-waning-crescent' : 'circle-half-full'} 
+                                size={24} 
+                                color="#10B981" 
+                              />
+                            </View>
+                            <View style={styles.itemTextContainer}>
+                              <Text style={styles.itemText}>{item.label}</Text>
+                              <Text style={styles.itemSubText}>
+                                {item.type === 'Sativa' ? 'For energy and focus' : 
+                                 item.type === 'Indica' ? 'For relaxation and sleep' : 
+                                 'Balanced hybrid effects'}
+                              </Text>
+                            </View>
+                            <Text style={styles.itemType}>{item.type}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    ) : (
+                      <View style={styles.noResultsContainer}>
+                        <Text style={styles.noResultsText}>No strains found</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+          
           {/* Fixed position Submit Button */}
           <View style={styles.buttonContainer}>
             <TouchableOpacity style={styles.submitButton} onPress={submitReview}>
@@ -430,6 +545,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingBottom: 40,
+    zIndex: 1,
   },
   scrollViewContent: {
     paddingBottom: 40,
@@ -450,12 +566,15 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   dropdown: {
-    height: 50,
-    borderColor: '#333',
+    height: 56,
     borderWidth: 1,
-    borderRadius: 30,
+    borderColor: '#333',
+    borderRadius: 8,
     paddingHorizontal: 16,
     backgroundColor: '#1A1A1A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   placeholderStyle: {
     fontSize: 16,
@@ -464,6 +583,7 @@ const styles = StyleSheet.create({
   selectedTextStyle: {
     fontSize: 16,
     color: '#FFFFFF',
+    backgroundColor: '#1A1A1A',
   },
   iconStyle: {
     width: 20,
@@ -478,39 +598,27 @@ const styles = StyleSheet.create({
   },
   dropdownItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#232323',
     borderBottomWidth: 1,
     borderBottomColor: '#333',
-    marginHorizontal: 8,
-    marginVertical: 4,
-    borderRadius: 16,
   },
   iconContainer: {
-    width: 40,
-    height: 40,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
     marginRight: 12,
   },
   itemTextContainer: {
     flex: 1,
-    flexDirection: 'column',
   },
   itemText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   itemSubText: {
     color: '#9CA3AF',
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 12,
+    marginTop: 2,
   },
   itemType: {
     color: '#10B981',
@@ -644,13 +752,53 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 24,
     backgroundColor: '#121212',
+    zIndex: 1000,
+    elevation: 1000, // For Android
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  selectedItem: {
+    backgroundColor: '#2A2A2A',
   },
   dropdownContainer: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 20,
+    position: 'relative',
+    zIndex: 1,
+  },
+  dropdownListContainer: {
+    backgroundColor: '#121212',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#333',
-    padding: 8,
-    marginTop: 8,
+    marginTop: 4,
+    maxHeight: 300,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+    overflow: 'hidden',
+  },
+  dropdownList: {
+    maxHeight: 300,
+  },
+  selectedValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  noResultsContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
 }); 
