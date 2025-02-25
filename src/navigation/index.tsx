@@ -56,8 +56,8 @@ const MainTabs = () => {
         tabBarStyle: {
           backgroundColor: '#121212',
           borderTopColor: 'rgba(255, 255, 255, 0.1)',
-          height: 60,
-          paddingBottom: 8,
+          height: 80,
+          paddingBottom: 20,
         },
         tabBarActiveTintColor: '#10b981', // emerald-500 equivalent
         tabBarInactiveTintColor: 'rgba(255, 255, 255, 0.6)',
@@ -74,7 +74,7 @@ const MainTabs = () => {
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'HighMark',
+          title: 'Discover',
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
           ),
@@ -103,7 +103,7 @@ const MainTabs = () => {
                 backgroundColor: '#10b981',
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginBottom: 20,
+                marginBottom: 32,
                 shadowColor: '#10b981',
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
