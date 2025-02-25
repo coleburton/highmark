@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { mockStrains, mockReviews, mockUserProfiles } from '../data/mockData';
+import { mockStrains, mockReviews, mockUsers } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Strain, Review } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,7 @@ type RootStackParamList = {
   Home: undefined;
   Strain: { strainId: string };
   Review: { reviewId: string };
+  UserProfile: { userId: string };
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -50,28 +51,32 @@ export const HomeScreen = () => {
   );
 
   const renderReviewCard = ({ item }: { item: Review & { strains: { name: string; type: string } } } ) => (
-    <TouchableOpacity
-      style={styles.reviewCard}
-      onPress={() => navigation.navigate('Review', { reviewId: item.id })}
-    >
+    <View style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
-        <Image
-          source={{ uri: mockUserProfiles[item.user_id].avatar_url }}
-          style={styles.avatar}
-        />
-        <View style={styles.reviewHeaderText}>
-          <Text style={styles.username}>{mockUserProfiles[item.user_id].username}</Text>
-          <Text style={styles.strainReviewed}>{item.strains.name}</Text>
-        </View>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('UserProfile', { userId: item.user_id })}
+          style={styles.userContainer}
+        >
+          <Image
+            source={{ uri: mockUsers.find(user => user.id === item.user_id)?.avatar_url || 'https://via.placeholder.com/40' }}
+            style={styles.avatar}
+          />
+          <View style={styles.reviewHeaderText}>
+            <Text style={styles.username}>{mockUsers.find(user => user.id === item.user_id)?.username || 'Unknown User'}</Text>
+            <Text style={styles.strainReviewed}>{item.strains.name}</Text>
+          </View>
+        </TouchableOpacity>
         <View style={styles.rating}>
           <MaterialCommunityIcons name="star" size={16} color="#FFB800" />
           <Text style={styles.ratingText}>{item.rating}</Text>
         </View>
       </View>
-      <Text style={styles.reviewText} numberOfLines={2}>
-        {item.review_text}
-      </Text>
-    </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('Review', { reviewId: item.id })}>
+        <Text style={styles.reviewText} numberOfLines={2}>
+          {item.review_text}
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -103,7 +108,11 @@ export const HomeScreen = () => {
       </View>
       
       <Text style={styles.sectionTitle}>Recent Reviews</Text>
-      {mockReviews.map((item) => renderReviewCard({ item }))}
+      {mockReviews.map((item) => (
+        <React.Fragment key={item.id}>
+          {renderReviewCard({ item })}
+        </React.Fragment>
+      ))}
     </ScrollView>
   );
 };
@@ -217,6 +226,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    justifyContent: 'space-between',
+  },
+  userContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   avatar: {
     width: 40,

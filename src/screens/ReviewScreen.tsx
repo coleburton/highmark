@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { mockReviews, mockStrains, mockUserProfiles } from '../data/mockData';
+import { mockReviews, mockStrains, mockUsers } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getStrainImage } from '../utils/imageUtils';
 
@@ -9,6 +9,7 @@ type RootStackParamList = {
   Home: undefined;
   Strain: { strainId: string };
   Review: { reviewId: string };
+  UserProfile: { userId: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Review'>;
@@ -26,7 +27,15 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
   }
 
   const strain = mockStrains.find((s) => s.id === review.strain_id);
-  const user = mockUserProfiles[review.user_id];
+  const user = mockUsers.find(u => u.id === review.user_id);
+
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>User not found</Text>
+      </View>
+    );
+  }
 
   const renderStars = (rating: number) => (
     <View style={styles.starsContainer}>
@@ -41,12 +50,19 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
     </View>
   );
 
+  const navigateToUserProfile = () => {
+    navigation.navigate('UserProfile', { userId: review.user_id });
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView style={styles.scrollView}>
         {/* Header with user info and strain */}
         <View style={styles.header}>
-          <View style={styles.userInfo}>
+          <TouchableOpacity 
+            style={styles.userInfo}
+            onPress={navigateToUserProfile}
+          >
             <Image 
               source={{ uri: user.avatar_url }} 
               style={styles.userAvatar}
@@ -57,7 +73,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
                 {new Date(review.created_at).toLocaleDateString()}
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.strainBadge}

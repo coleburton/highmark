@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { mockStrains, mockReviews, mockUserProfiles, mockLists } from '../data/mockData';
+import { mockStrains, mockReviews, mockUsers, mockLists } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getAllStrainImages, hasMultipleImages, getStrainImage } from '../utils/imageUtils';
 import { ListModal } from '../components/ListModal';
@@ -11,6 +11,7 @@ type RootStackParamList = {
   Home: undefined;
   Strain: { strainId: string };
   Review: { reviewId: string };
+  UserProfile: { userId: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Strain'>;
@@ -315,29 +316,35 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             </TouchableOpacity>
 
             {strainReviews.map((review) => (
-              <TouchableOpacity
+              <View
                 key={review.id}
                 style={styles.reviewCard}
-                onPress={() => navigation.navigate('Review', { reviewId: review.id })}
               >
                 <View style={styles.reviewHeader}>
-                  <Image
-                    source={{ uri: mockUserProfiles[review.user_id].avatar_url }}
-                    style={styles.avatar}
-                  />
-                  <View style={styles.reviewHeaderText}>
-                    <Text style={styles.username}>
-                      {mockUserProfiles[review.user_id].username}
-                    </Text>
-                    <View style={styles.reviewRating}>
-                      {renderStars(review.rating)}
+                  <TouchableOpacity 
+                    style={styles.userContainer}
+                    onPress={() => navigation.navigate('UserProfile', { userId: review.user_id })}
+                  >
+                    <Image
+                      source={{ uri: mockUsers.find(user => user.id === review.user_id)?.avatar_url || 'https://via.placeholder.com/40' }}
+                      style={styles.avatar}
+                    />
+                    <View style={styles.reviewHeaderText}>
+                      <Text style={styles.username}>
+                        {mockUsers.find(user => user.id === review.user_id)?.username || 'Unknown User'}
+                      </Text>
+                      <View style={styles.reviewRating}>
+                        {renderStars(review.rating)}
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.reviewText} numberOfLines={3}>
-                  {review.review_text}
-                </Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('Review', { reviewId: review.id })}>
+                  <Text style={styles.reviewText} numberOfLines={3}>
+                    {review.review_text}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         </View>
@@ -645,5 +652,10 @@ const styles = StyleSheet.create({
   thumbnail: {
     width: '100%',
     height: '100%',
+  },
+  userContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
 }); 
