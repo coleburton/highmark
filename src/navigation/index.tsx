@@ -167,7 +167,8 @@ export const Navigation = () => {
           name="Strain"
           component={StrainScreen}
           options={{
-            title: 'Strain Details',
+            title: '',
+            headerBackTitle: 'Home',
           }}
         />
         <Stack.Screen

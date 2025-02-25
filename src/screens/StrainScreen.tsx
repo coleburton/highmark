@@ -165,6 +165,21 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             resizeMode="cover"
           />
           
+          {/* Rating overlay on image */}
+          {reviewStats.totalReviews > 0 && (
+            <View style={styles.ratingOverlay}>
+              <View style={styles.ratingContainer}>
+                <MaterialCommunityIcons name="star" size={18} color="#10B981" />
+                <Text style={styles.ratingText}>
+                  {reviewStats.averageRating.toFixed(1)}
+                </Text>
+                <Text style={styles.ratingCount}>
+                  ({reviewStats.totalReviews})
+                </Text>
+              </View>
+            </View>
+          )}
+          
           {/* Image gallery dots indicator */}
           {strainImages.length > 1 && (
             <View style={styles.imageDots}>
@@ -283,28 +298,53 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             </View>
           </View>
 
+          {/* Ratings Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>RATINGS</Text>
+            <View style={styles.ratingsContainer}>
+              <View style={styles.ratingScoreContainer}>
+                <Text style={styles.ratingScoreText}>{reviewStats.averageRating.toFixed(1)}</Text>
+                <View style={styles.ratingStars}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <MaterialCommunityIcons
+                      key={star}
+                      name="star"
+                      size={16}
+                      color={star <= Math.round(reviewStats.averageRating) ? "#10B981" : "#27272A"}
+                      style={{ marginHorizontal: -1 }}
+                    />
+                  ))}
+                </View>
+              </View>
+              
+              <View style={styles.histogramContainer}>
+                {([5, 4, 3, 2, 1] as const).map(rating => (
+                  <View key={rating} style={styles.histogramBarRow}>
+                    <Text style={styles.histogramRatingNumber}>{rating}</Text>
+                    <View style={styles.histogramBarWrapper}>
+                      <View 
+                        style={[
+                          styles.histogramBarFill, 
+                          { 
+                            width: `${(reviewStats.ratingCounts[rating] / reviewStats.maxCount) * 100}%`,
+                            backgroundColor: "#10B981"
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+            
+            <Text style={styles.totalReviewsText}>
+              Based on {reviewStats.totalReviews} {reviewStats.totalReviews === 1 ? 'review' : 'reviews'}
+            </Text>
+          </View>
+
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Reviews</Text>
             
-            {/* Review Statistics */}
-            <View style={styles.reviewStats}>
-              <View style={styles.averageRating}>
-                <Text style={styles.averageRatingNumber}>
-                  {reviewStats.averageRating.toFixed(1)}
-                </Text>
-                {renderStars(reviewStats.averageRating)}
-                <Text style={styles.totalReviews}>
-                  {reviewStats.totalReviews} {reviewStats.totalReviews === 1 ? 'review' : 'reviews'}
-                </Text>
-              </View>
-              
-              <View style={styles.histogram}>
-                {([5, 4, 3, 2, 1] as const).map(rating => 
-                  renderHistogramBar(rating, reviewStats.ratingCounts[rating])
-                )}
-              </View>
-            </View>
-
             <TouchableOpacity
               style={styles.addReviewButton}
               onPress={() => {
@@ -657,5 +697,88 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+  },
+  ratingOverlay: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  ratingContainer: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginLeft: 4,
+  },
+  ratingCount: {
+    fontSize: 14,
+    color: '#ffffff',
+    marginLeft: 4,
+  },
+  ratingsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#18181B',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  ratingScoreContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 60,
+    marginRight: 24,
+  },
+  ratingScoreText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+  },
+  histogramContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    height: 120,
+  },
+  histogramBarRow: {
+    height: 16,
+    marginVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  histogramRatingNumber: {
+    width: 20,
+    color: '#6B7280',
+    fontSize: 12,
+    marginRight: 8,
+    textAlign: 'center',
+  },
+  histogramBarWrapper: {
+    flex: 1,
+    height: '100%',
+    backgroundColor: '#27272A',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  histogramBarFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  totalReviewsText: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 12,
+    textAlign: 'center',
   },
 }); 
