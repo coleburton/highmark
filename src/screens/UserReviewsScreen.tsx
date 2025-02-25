@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { mockUsers } from '../data/mockData';
 
 type UserReviewsScreenProps = NativeStackScreenProps<RootStackParamList, 'UserReviews'>;
 type UserReviewsNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -81,30 +82,95 @@ export default function UserReviewsScreen({ route }: UserReviewsScreenProps) {
     }
   }
 
-  const renderReviewItem = ({ item }: { item: ExtendedReview }) => (
-    <TouchableOpacity
-      style={styles.reviewCard}
-      onPress={() => navigation.navigate('Review', { reviewId: item.id })}
-    >
-      <View style={styles.reviewHeader}>
-        <Text style={styles.strainName}>{item.strains?.name || 'Unknown Strain'}</Text>
-        <Text style={styles.strainType}>{item.strains?.type || 'Unknown Type'}</Text>
-      </View>
-      <View style={styles.ratingContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Text key={star} style={[styles.star, star <= item.rating ? styles.filledStar : {}]}>
-            ★
-          </Text>
-        ))}
-      </View>
-      <Text style={styles.reviewText} numberOfLines={3}>
-        {item.review_text}
-      </Text>
-      <Text style={styles.reviewDate}>
-        {new Date(item.created_at).toLocaleDateString()}
-      </Text>
-    </TouchableOpacity>
-  );
+  const renderReviewItem = ({ item }: { item: ExtendedReview }) => {
+    // State to track if the review is expanded
+    const [expanded, setExpanded] = React.useState(false);
+    
+    // Check if the review text is long enough to need expansion
+    const isLongReview = item.review_text.length > 80;
+    
+    // Get the user data for the avatar
+    const reviewUser = mockUsers.find(user => user.id === item.user_id);
+    
+    return (
+      <TouchableOpacity
+        style={styles.reviewCard}
+        onPress={() => navigation.navigate('Review', { reviewId: item.id })}
+      >
+        <View style={styles.reviewHeader}>
+          <View style={styles.reviewHeaderLeft}>
+            {/* User avatar */}
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('UserProfile', { userId: item.user_id })}
+              style={styles.avatarContainer}
+            >
+              {reviewUser?.avatar_url ? (
+                <Image 
+                  source={{ uri: reviewUser.avatar_url }} 
+                  style={styles.reviewAvatar} 
+                />
+              ) : (
+                <View style={[styles.initialsAvatar, { backgroundColor: getRandomColor(item.user_id) }]}>
+                  <Text style={styles.initialsText}>
+                    {reviewUser?.username?.substring(0, 2).toUpperCase() || '??'}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <View style={styles.strainInfo}>
+              <Text style={styles.strainName}>{item.strains?.name || 'Unknown Strain'}</Text>
+              <Text style={styles.strainType}>{item.strains?.type || 'Unknown Type'}</Text>
+            </View>
+          </View>
+          <View style={styles.ratingContainer}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Text key={star} style={[styles.star, star <= item.rating ? styles.filledStar : {}]}>
+                ★
+              </Text>
+            ))}
+          </View>
+        </View>
+        <Text 
+          style={styles.reviewText} 
+          numberOfLines={expanded ? undefined : 3}
+        >
+          {item.review_text}
+        </Text>
+        {isLongReview && (
+          <TouchableOpacity 
+            onPress={() => setExpanded(!expanded)} 
+            style={styles.readMoreButton}
+          >
+            <Text style={styles.readMoreText}>
+              {expanded ? 'Show Less' : 'Read More'}
+            </Text>
+          </TouchableOpacity>
+        )}
+        <Text style={styles.reviewDate}>
+          {new Date(item.created_at).toLocaleDateString()}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  // Helper function to generate consistent colors based on user ID
+  const getRandomColor = (userId: string) => {
+    // Simple hash function to generate a color from user ID
+    const hash = userId.split('').reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    
+    const colors = [
+      '#10B981', // emerald
+      '#7C3AED', // purple
+      '#F59E0B', // amber
+      '#EF4444', // red
+      '#3B82F6', // blue
+      '#EC4899', // pink
+    ];
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
 
   if (loading) {
     return (
@@ -189,6 +255,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  reviewHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  avatarContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  reviewAvatar: {
+    width: '100%',
+    height: '100%',
+  },
+  initialsAvatar: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  initialsText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  strainInfo: {
+    flex: 1,
+  },
   strainName: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -214,10 +311,24 @@ const styles = StyleSheet.create({
   reviewText: {
     color: 'rgba(255, 255, 255, 0.8)',
     marginBottom: 8,
+    lineHeight: 20,
   },
   reviewDate: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 12,
+  },
+  readMoreButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  readMoreText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
