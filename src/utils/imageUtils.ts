@@ -2,112 +2,107 @@
  * Utility functions for handling strain images
  */
 
-// Map of strain IDs to their image filenames (without extension for flexibility)
-export const strainImages: Record<string, string[]> = {
-  's1': ['blue_dream_1'],
-  's2': ['og_kush_1'],
-  's3': ['sour_diesel_1'],
-  // Add more strains as needed
+import { ImageSourcePropType } from 'react-native';
+
+// Define the mapping of strain IDs to their image filenames
+const strainImages: Record<string, string> = {
+  'strain-1': 'blue_dream_1.jpg',
+  'strain-2': 'og_kush_1.jpg',
+  'strain-3': 'sour_diesel_1.jpg',
 };
 
-// Instead of trying to load an empty file, we'll use a hardcoded default
-// This is a simple object that React Native's Image component can use as a fallback
+// Default image to use if a strain image is not found - keeping this as a fallback
 const DEFAULT_STRAIN_IMAGE = { uri: 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain' };
 
 // Cache for loaded images to avoid repeated requires
 const imageCache: Record<string, any> = {};
 
 /**
- * Get the image for a strain
+ * Get the image for a strain based on its ID
  * @param strainId The ID of the strain
- * @param index Optional index of the image to retrieve (defaults to 0)
- * @returns The image module for the strain
+ * @returns The image source for the strain
  */
-export function getStrainImage(strainId: string, index: number = 0): any {
-  const cacheKey = `${strainId}_${index}`;
-  
-  // Return from cache if available
-  if (imageCache[cacheKey]) {
-    return imageCache[cacheKey];
-  }
-  
+export const getStrainImage = (strainId: string): ImageSourcePropType => {
   try {
-    // If strain doesn't exist or no images, return default
-    if (!strainImages[strainId] || strainImages[strainId].length === 0) {
-      return DEFAULT_STRAIN_IMAGE;
-    }
-    
-    // If index is out of bounds, use the first image
-    const imageIndex = index >= strainImages[strainId].length ? 0 : index;
-    const imageName = strainImages[strainId][imageIndex];
-    
-    // Dynamic requires aren't supported in React Native, so we need to handle each case
-    let image;
-    switch (`${strainId}/${imageName}`) {
-      case 's1/blue_dream_1':
-        image = require('../../assets/images/strains/s1/blue_dream_1.jpg');
-        break;
-      case 's2/og_kush_1':
-        image = require('../../assets/images/strains/s2/og_kush_1.jpg');
-        break;
-      case 's3/sour_diesel_1':
-        image = require('../../assets/images/strains/s3/sour_diesel_1.jpg');
-        break;
-      default:
-        // If we can't find the specific image, use the default
-        image = DEFAULT_STRAIN_IMAGE;
-    }
-    
-    // Cache the result
-    imageCache[cacheKey] = image;
-    return image;
+    // Map of strain IDs to their respective image sources
+    const imageMap: Record<string, ImageSourcePropType> = {
+      'strain-1': require('../../assets/images/strains/s1/blue_dream_1.jpg'),
+      'strain-2': require('../../assets/images/strains/s2/og_kush_1.jpg'),
+      'strain-3': require('../../assets/images/strains/s3/sour_diesel_1.jpg'),
+    };
+
+    // Try to return the image source for the strain ID, or the local placeholder if not found
+    return imageMap[strainId] || require('../../assets/images/placeholder.png');
   } catch (error) {
-    console.error(`Error loading image for strain ${strainId}:`, error);
+    // If there's any error (like the placeholder not being found), use the URL fallback
+    console.warn('Error loading strain image:', error);
     return DEFAULT_STRAIN_IMAGE;
   }
-}
+};
 
 /**
  * Get all images for a strain
  * @param strainId The ID of the strain
- * @returns Array of image modules for the strain
+ * @returns Array of image objects for the strain
  */
 export function getAllStrainImages(strainId: string): any[] {
-  if (!strainImages[strainId] || strainImages[strainId].length === 0) {
+  if (!strainImages[strainId]) {
     return [DEFAULT_STRAIN_IMAGE];
   }
   
-  return strainImages[strainId].map((_, index) => getStrainImage(strainId, index));
+  return [getStrainImage(strainId)];
 }
 
 /**
  * Check if a strain has multiple images
  * @param strainId The ID of the strain
- * @returns True if the strain has more than one image
+ * @returns Always false since we only have one image per strain
  */
 export function hasMultipleImages(strainId: string): boolean {
-  return strainImages[strainId]?.length > 1;
+  return false;
+}
+
+/**
+ * Get the image URL for a strain
+ * @param strainId The ID of the strain
+ * @returns The image URL for the strain
+ */
+export function getStrainImageUrl(strainId: string): string {
+  return strainImages[strainId] || 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain';
 }
 
 // Legacy functions that return string paths (keeping for backward compatibility)
 // These won't work for local images in React Native but are kept for reference
 export function getStrainImagePath(strainId: string, index: number = 0): string {
   console.warn('getStrainImagePath is deprecated. Use getStrainImage instead for React Native local images.');
-  if (!strainImages[strainId] || strainImages[strainId].length === 0) {
+  if (!strainImages[strainId]) {
     return `assets/images/strains/default_strain.jpg`;
   }
   
-  const imageIndex = index >= strainImages[strainId].length ? 0 : index;
-  return `assets/images/strains/${strainId}/${strainImages[strainId][imageIndex]}.jpg`;
+  return `assets/images/strains/${strainId}/${strainImages[strainId]}`;
 }
 
 export function getAllStrainImagePaths(strainId: string): string[] {
   console.warn('getAllStrainImagePaths is deprecated. Use getAllStrainImages instead for React Native local images.');
-  if (!strainImages[strainId] || strainImages[strainId].length === 0) {
+  if (!strainImages[strainId]) {
     return [`assets/images/strains/default_strain.jpg`];
   }
   
-  return strainImages[strainId].map((filename) => 
-    `assets/images/strains/${strainId}/${filename}.jpg`
-  );
-} 
+  return [`assets/images/strains/${strainId}/${strainImages[strainId]}`];
+}
+
+/**
+ * Get the avatar image for a user based on their username
+ * @param username The username of the user
+ * @returns The avatar image source for the user
+ */
+export const getUserAvatar = (username: string): ImageSourcePropType => {
+  try {
+    // Try to use the local avatar placeholder
+    return require('../../assets/images/avatar-placeholder.png');
+  } catch (error) {
+    // If there's any error, fall back to the URL-based avatar
+    console.warn('Error loading avatar image:', error);
+    return { uri: 'https://ui-avatars.com/api/?name=' + encodeURIComponent(username) + '&background=10B981&color=fff' };
+  }
+}; 

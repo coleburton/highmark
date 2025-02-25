@@ -3,26 +3,50 @@ import { getStrainImage } from '../utils/imageUtils';
 
 export const mockUsers: User[] = [
   {
-    id: 'u1',
+    id: 'user-1',
     username: 'JaneGreen',
     email: 'jane@example.com',
-    avatar_url: 'https://ui-avatars.com/api/?name=Jane+Green',
+    avatar_url: 'https://ui-avatars.com/api/?name=Jane+Green&background=10B981&color=fff',
     bio: 'Cannabis enthusiast and reviewer. Love exploring new strains! 🌿',
     created_at: '2024-01-01T00:00:00Z',
   },
   {
-    id: 'u2',
+    id: 'user-2',
     username: 'MikeBlaze',
     email: 'mike@example.com',
-    avatar_url: 'https://ui-avatars.com/api/?name=Mike+Blaze',
+    avatar_url: 'https://ui-avatars.com/api/?name=Mike+Blaze&background=7C3AED&color=fff',
     bio: 'Medicinal cannabis advocate. Sharing honest reviews.',
     created_at: '2024-01-02T00:00:00Z',
   },
+  {
+    id: 'user-3',
+    username: 'CannabisQueen',
+    email: 'sarah@example.com',
+    avatar_url: 'https://randomuser.me/api/portraits/women/3.jpg',
+    bio: 'Cannabis educator and advocate. I believe in the healing power of this amazing plant.',
+    created_at: '2023-03-10T00:00:00.000Z'
+  },
+  {
+    id: 'user-4',
+    username: 'HerbExplorer',
+    email: 'alex@example.com',
+    avatar_url: 'https://randomuser.me/api/portraits/men/4.jpg',
+    bio: 'Recreational user with a passion for discovering unique terpene profiles.',
+    created_at: '2023-04-05T00:00:00.000Z'
+  },
+  {
+    id: 'user-5',
+    username: 'GreenThumb',
+    email: 'taylor@example.com',
+    avatar_url: 'https://randomuser.me/api/portraits/women/5.jpg',
+    bio: 'Home grower and cannabis connoisseur. Ask me about my latest harvest!',
+    created_at: '2023-05-12T00:00:00.000Z'
+  }
 ];
 
 export const mockStrains: Strain[] = [
   {
-    id: 's1',
+    id: 'strain-1',
     name: 'Blue Dream',
     type: 'Hybrid',
     THC_percentage: 18,
@@ -33,11 +57,11 @@ export const mockStrains: Strain[] = [
     image_url: 'assets/images/strains/s1/blue_dream_1.jpg',
     description: 'A legendary hybrid strain known for its balanced effects. Blue Dream delivers a gentle cerebral invigoration alongside full-body relaxation, making it perfect for daytime use.',
     created_at: '2024-01-01T00:00:00Z',
-    submitted_by: 'u1',
+    submitted_by: 'user-1',
     approved: true,
   },
   {
-    id: 's2',
+    id: 'strain-2',
     name: 'OG Kush',
     type: 'Indica',
     THC_percentage: 23,
@@ -48,11 +72,11 @@ export const mockStrains: Strain[] = [
     image_url: 'assets/images/strains/s2/og_kush_1.jpg',
     description: 'A classic indica strain with powerful effects. OG Kush is known for its strong pine and woody aroma, delivering deep relaxation and stress relief.',
     created_at: '2024-01-02T00:00:00Z',
-    submitted_by: 'u2',
+    submitted_by: 'user-2',
     approved: true,
   },
   {
-    id: 's3',
+    id: 'strain-3',
     name: 'Sour Diesel',
     type: 'Sativa',
     THC_percentage: 20,
@@ -63,94 +87,353 @@ export const mockStrains: Strain[] = [
     image_url: 'assets/images/strains/s3/sour_diesel_1.jpg',
     description: 'A fast-acting sativa with energizing effects. Sour Diesel features a pungent fuel-like aroma and provides a dreamy cerebral effect perfect for creative pursuits.',
     created_at: '2024-01-03T00:00:00Z',
-    submitted_by: 'u1',
+    submitted_by: 'user-1',
     approved: true,
   },
+  {
+    id: 'strain-4',
+    name: 'Northern Lights',
+    type: 'Indica',
+    THC_percentage: 21,
+    CBD_percentage: 0.4,
+    effects: ['Relaxed', 'Sleepy', 'Happy', 'Pain Relief'],
+    flavors: ['Sweet', 'Spicy', 'Earthy'],
+    images: ['assets/images/strains/s4/northern_lights_1.jpg'],
+    image_url: 'assets/images/strains/s4/northern_lights_1.jpg',
+    description: 'A classic indica strain known for its resinous buds and resilience. Northern Lights delivers a deeply relaxing experience with a sweet and spicy aroma.',
+    created_at: '2024-01-04T00:00:00Z',
+    submitted_by: 'user-3',
+    approved: true,
+  },
+  {
+    id: 'strain-5',
+    name: 'Jack Herer',
+    type: 'Sativa',
+    THC_percentage: 19,
+    CBD_percentage: 0.1,
+    effects: ['Energetic', 'Creative', 'Focused', 'Uplifted'],
+    flavors: ['Pine', 'Woody', 'Citrus'],
+    images: ['assets/images/strains/s5/jack_herer_1.jpg'],
+    image_url: 'assets/images/strains/s5/jack_herer_1.jpg',
+    description: 'A sativa-dominant strain named after the cannabis activist. Jack Herer offers a clear-headed, creative experience with a spicy pine scent.',
+    created_at: '2024-01-05T00:00:00Z',
+    submitted_by: 'user-4',
+    approved: true,
+  },
+  {
+    id: 'strain-6',
+    name: 'Pineapple Express',
+    type: 'Hybrid',
+    THC_percentage: 17,
+    CBD_percentage: 0.3,
+    effects: ['Happy', 'Uplifted', 'Creative', 'Energetic'],
+    flavors: ['Pineapple', 'Tropical', 'Sweet'],
+    images: ['assets/images/strains/s6/pineapple_express_1.jpg'],
+    image_url: 'assets/images/strains/s6/pineapple_express_1.jpg',
+    description: 'A tropical-flavored hybrid with a balanced high. Pineapple Express delivers a long-lasting energetic buzz perfect for productive afternoons.',
+    created_at: '2024-01-06T00:00:00Z',
+    submitted_by: 'user-5',
+    approved: true,
+  },
+  {
+    id: 'strain-7',
+    name: 'Girl Scout Cookies',
+    type: 'Hybrid',
+    THC_percentage: 24,
+    CBD_percentage: 0.2,
+    effects: ['Euphoric', 'Relaxed', 'Happy', 'Creative'],
+    flavors: ['Sweet', 'Earthy', 'Mint'],
+    images: ['assets/images/strains/s7/gsc_1.jpg'],
+    image_url: 'assets/images/strains/s7/gsc_1.jpg',
+    description: 'A popular hybrid strain with a sweet and earthy aroma. Girl Scout Cookies delivers a potent combination of full-body relaxation with cerebral euphoria.',
+    created_at: '2024-01-07T00:00:00Z',
+    submitted_by: 'user-2',
+    approved: true,
+  },
+  {
+    id: 'strain-8',
+    name: 'Granddaddy Purple',
+    type: 'Indica',
+    THC_percentage: 20,
+    CBD_percentage: 0.4,
+    effects: ['Relaxed', 'Sleepy', 'Happy', 'Hungry'],
+    flavors: ['Grape', 'Berry', 'Sweet'],
+    images: ['assets/images/strains/s8/gdp_1.jpg'],
+    image_url: 'assets/images/strains/s8/gdp_1.jpg',
+    description: 'A famous indica strain with deep purple buds. Granddaddy Purple delivers a powerful combination of cerebral euphoria and physical relaxation.',
+    created_at: '2024-01-08T00:00:00Z',
+    submitted_by: 'user-3',
+    approved: true,
+  }
 ];
 
-export const mockReviews: (Review & { strains: { name: string; type: string } })[] = [
+// Define a type for the extended review with strain info
+interface StrainInfo {
+  id: string;
+  name: string;
+  type: string;
+  image_url?: string;
+}
+
+type ExtendedReview = Review & { 
+  strains: StrainInfo;
+};
+
+export const mockReviews: ExtendedReview[] = [
   {
-    id: 'r1',
-    user_id: 'u1',
-    strain_id: 's1',
+    id: 'review-1',
+    user_id: 'user-1',
+    strain_id: 'strain-1',
     rating: 4.5,
     review_text: 'Perfect balance of relaxation and creativity. Great for afternoon use!',
     effects: ['Relaxed', 'Creative', 'Happy'],
     flavors: ['Berry', 'Sweet'],
     created_at: '2024-01-10T00:00:00Z',
     strains: {
+      id: 'strain-1',
       name: 'Blue Dream',
       type: 'Hybrid',
-    },
+      image_url: 'assets/images/strains/s1/blue_dream_1.jpg'
+    }
   },
   {
-    id: 'r2',
-    user_id: 'u2',
-    strain_id: 's2',
+    id: 'review-2',
+    user_id: 'user-2',
+    strain_id: 'strain-2',
     rating: 5,
     review_text: 'Classic OG Kush. Amazing for stress relief and sleep.',
     effects: ['Relaxed', 'Sleepy'],
     flavors: ['Pine', 'Woody'],
     created_at: '2024-01-11T00:00:00Z',
     strains: {
+      id: 'strain-2',
       name: 'OG Kush',
       type: 'Indica',
-    },
+      image_url: 'assets/images/strains/s2/og_kush_1.jpg'
+    }
   },
   {
-    id: 'r3',
-    user_id: 'u1',
-    strain_id: 's3',
-    rating: 4,
-    review_text: 'Great for morning use. Really helps with focus and creativity.',
-    effects: ['Energetic', 'Focused'],
+    id: 'review-3',
+    user_id: 'user-1',
+    strain_id: 'strain-3',
+    rating: 4.5,
+    review_text: 'This strain helped me relax after a long day. Great for evening use.',
+    effects: ['Relaxed', 'Creative', 'Euphoric'],
     flavors: ['Diesel', 'Citrus'],
-    created_at: '2024-01-12T00:00:00Z',
+    created_at: '2023-08-03T00:00:00.000Z',
     strains: {
+      id: 'strain-3',
       name: 'Sour Diesel',
       type: 'Sativa',
-    },
+      image_url: 'assets/images/strains/s3/sour_diesel_1.jpg'
+    }
   },
+  {
+    id: 'review-4',
+    user_id: 'user-2',
+    strain_id: 'strain-4',
+    rating: 5,
+    review_text: 'Absolutely amazing for pain relief. My go-to strain when my back is acting up.',
+    effects: ['Relaxed', 'Pain Relief', 'Sleepy'],
+    flavors: ['Sweet', 'Spicy'],
+    created_at: '2023-08-04T00:00:00.000Z',
+    strains: {
+      id: 'strain-4',
+      name: 'Northern Lights',
+      type: 'Indica',
+      image_url: 'assets/images/strains/s4/northern_lights_1.jpg'
+    }
+  },
+  {
+    id: 'review-5',
+    user_id: 'user-2',
+    strain_id: 'strain-5',
+    rating: 3.5,
+    review_text: 'Decent strain but not my favorite. The effects were mild and short-lasting.',
+    effects: ['Energetic', 'Focused'],
+    flavors: ['Pine', 'Citrus'],
+    created_at: '2023-08-05T00:00:00.000Z',
+    strains: {
+      id: 'strain-5',
+      name: 'Jack Herer',
+      type: 'Sativa',
+      image_url: 'assets/images/strains/s5/jack_herer_1.jpg'
+    }
+  },
+  {
+    id: 'review-6',
+    user_id: 'user-3',
+    strain_id: 'strain-6',
+    rating: 4,
+    review_text: 'Great for creativity! I use this when I need inspiration for my art projects.',
+    effects: ['Creative', 'Happy', 'Uplifted'],
+    flavors: ['Pineapple', 'Tropical'],
+    created_at: '2023-08-06T00:00:00.000Z',
+    strains: {
+      id: 'strain-6',
+      name: 'Pineapple Express',
+      type: 'Hybrid',
+      image_url: 'assets/images/strains/s6/pineapple_express_1.jpg'
+    }
+  },
+  {
+    id: 'review-7',
+    user_id: 'user-3',
+    strain_id: 'strain-7',
+    rating: 4.5,
+    review_text: 'Excellent flavor profile with citrus notes. The effects are balanced and pleasant.',
+    effects: ['Euphoric', 'Relaxed', 'Creative'],
+    flavors: ['Sweet', 'Earthy', 'Mint'],
+    created_at: '2023-08-07T00:00:00.000Z',
+    strains: {
+      id: 'strain-7',
+      name: 'Girl Scout Cookies',
+      type: 'Hybrid',
+      image_url: 'assets/images/strains/s7/gsc_1.jpg'
+    }
+  },
+  {
+    id: 'review-8',
+    user_id: 'user-4',
+    strain_id: 'strain-8',
+    rating: 5,
+    review_text: 'This strain changed my life! Perfect for my anxiety and helps me sleep better.',
+    effects: ['Relaxed', 'Sleepy', 'Happy'],
+    flavors: ['Grape', 'Berry'],
+    created_at: '2023-08-08T00:00:00.000Z',
+    strains: {
+      id: 'strain-8',
+      name: 'Granddaddy Purple',
+      type: 'Indica',
+      image_url: 'assets/images/strains/s8/gdp_1.jpg'
+    }
+  },
+  {
+    id: 'review-9',
+    user_id: 'user-4',
+    strain_id: 'strain-1',
+    rating: 3,
+    review_text: 'Not bad, but I expected more based on the hype. Effects were underwhelming for me.',
+    effects: ['Relaxed', 'Mild'],
+    flavors: ['Berry', 'Sweet'],
+    created_at: '2023-08-09T00:00:00.000Z',
+    strains: {
+      id: 'strain-1',
+      name: 'Blue Dream',
+      type: 'Hybrid',
+      image_url: 'assets/images/strains/s1/blue_dream_1.jpg'
+    }
+  },
+  {
+    id: 'review-10',
+    user_id: 'user-5',
+    strain_id: 'strain-2',
+    rating: 4,
+    review_text: 'Solid strain for social situations. Makes me talkative without paranoia.',
+    effects: ['Happy', 'Talkative', 'Relaxed'],
+    flavors: ['Pine', 'Woody'],
+    created_at: '2023-08-10T00:00:00.000Z',
+    strains: {
+      id: 'strain-2',
+      name: 'OG Kush',
+      type: 'Indica',
+      image_url: 'assets/images/strains/s2/og_kush_1.jpg'
+    }
+  },
+  {
+    id: 'review-11',
+    user_id: 'user-5',
+    strain_id: 'strain-3',
+    rating: 4.5,
+    review_text: 'One of my favorites! Great taste and perfect effects for relaxing at home.',
+    effects: ['Energetic', 'Creative', 'Focused'],
+    flavors: ['Diesel', 'Citrus'],
+    created_at: '2023-08-11T00:00:00.000Z',
+    strains: {
+      id: 'strain-3',
+      name: 'Sour Diesel',
+      type: 'Sativa',
+      image_url: 'assets/images/strains/s3/sour_diesel_1.jpg'
+    }
+  },
+  {
+    id: 'review-12',
+    user_id: 'user-1',
+    strain_id: 'strain-4',
+    rating: 3.5,
+    review_text: 'Good but not great. The effects were nice but didn\'t last as long as I\'d like.',
+    effects: ['Relaxed', 'Pain Relief'],
+    flavors: ['Sweet', 'Spicy'],
+    created_at: '2023-08-12T00:00:00.000Z',
+    strains: {
+      id: 'strain-4',
+      name: 'Northern Lights',
+      type: 'Indica',
+      image_url: 'assets/images/strains/s4/northern_lights_1.jpg'
+    }
+  }
 ];
 
-export const mockUserProfiles: Record<string, { username: string; avatar_url: string }> = {
-  u1: {
-    username: 'JaneGreen',
-    avatar_url: 'https://ui-avatars.com/api/?name=Jane+Green',
-  },
-  u2: {
-    username: 'MikeBlaze',
-    avatar_url: 'https://ui-avatars.com/api/?name=Mike+Blaze',
-  },
-};
+// Define types for favorites and follows
+interface Favorite {
+  id: string;
+  user_id: string;
+  strain_id: string;
+  created_at: string;
+}
+
+interface Follow {
+  id: string;
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
+// Mock favorites data for each user
+export const mockFavorites: Favorite[] = [
+  { id: 'fav-1', user_id: 'user-1', strain_id: 'strain-1', created_at: '2023-06-01T00:00:00.000Z' },
+  { id: 'fav-2', user_id: 'user-1', strain_id: 'strain-3', created_at: '2023-06-02T00:00:00.000Z' },
+  { id: 'fav-3', user_id: 'user-2', strain_id: 'strain-2', created_at: '2023-06-04T00:00:00.000Z' },
+  { id: 'fav-4', user_id: 'user-3', strain_id: 'strain-1', created_at: '2023-06-06T00:00:00.000Z' },
+  { id: 'fav-5', user_id: 'user-3', strain_id: 'strain-2', created_at: '2023-06-07T00:00:00.000Z' }
+];
+
+// Mock follows data
+export const mockFollows: Follow[] = [
+  { id: 'follow-1', follower_id: 'user-1', following_id: 'user-2', created_at: '2023-07-01T00:00:00.000Z' },
+  { id: 'follow-2', follower_id: 'user-1', following_id: 'user-3', created_at: '2023-07-02T00:00:00.000Z' },
+  { id: 'follow-3', follower_id: 'user-2', following_id: 'user-1', created_at: '2023-07-03T00:00:00.000Z' },
+  { id: 'follow-4', follower_id: 'user-3', following_id: 'user-1', created_at: '2023-07-05T00:00:00.000Z' },
+  { id: 'follow-5', follower_id: 'user-3', following_id: 'user-2', created_at: '2023-07-06T00:00:00.000Z' }
+];
 
 // Mock lists data
 export const mockLists: List[] = [
   {
-    id: 'l1',
-    user_id: 'u1',
-    title: 'Favorites',
-    description: 'My all-time favorite strains',
+    id: 'list-1',
+    user_id: 'user-1',
+    title: 'My Favorite Strains',
+    description: 'A collection of my all-time favorite cannabis strains',
     is_public: true,
-    strains: ['s1'],
-    created_at: '2024-01-15T00:00:00Z',
+    strains: ['strain-1', 'strain-3'],
+    created_at: '2024-01-25T00:00:00Z',
   },
   {
-    id: 'l2',
-    user_id: 'u1',
-    title: 'To Try',
-    description: 'Strains I want to try next',
+    id: 'list-2',
+    user_id: 'user-2',
+    title: 'Best for Pain Relief',
+    description: 'Strains that have helped me manage chronic pain',
     is_public: true,
-    strains: ['s2'],
-    created_at: '2024-01-16T00:00:00Z',
+    strains: ['strain-2'],
+    created_at: '2024-01-26T00:00:00Z',
   },
   {
-    id: 'l3',
-    user_id: 'u2',
-    title: 'Sleep Aid',
-    description: 'Best strains for sleep',
+    id: 'list-3',
+    user_id: 'user-3',
+    title: 'Creative Boost',
+    description: 'My go-to strains for creative work and inspiration',
     is_public: true,
-    strains: ['s2'],
-    created_at: '2024-01-17T00:00:00Z',
-  },
+    strains: ['strain-3', 'strain-1'],
+    created_at: '2024-01-27T00:00:00Z',
+  }
 ]; 

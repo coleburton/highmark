@@ -6,6 +6,9 @@ import { HomeScreen } from '../screens/HomeScreen';
 import { StrainScreen } from '../screens/StrainScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
+import UserReviewsScreen from '../screens/UserReviewsScreen';
+import UserFavoritesScreen from '../screens/UserFavoritesScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
 
@@ -15,6 +18,9 @@ export type RootStackParamList = {
   Strain: { strainId: string };
   Review: { reviewId: string };
   Profile: undefined;
+  UserProfile: { userId: string };
+  UserReviews: { userId: string };
+  UserFavorites: { userId: string };
 };
 
 // Define the type for the bottom tab navigator
@@ -176,6 +182,27 @@ export const Navigation = () => {
           component={ProfileScreen}
           options={{
             title: 'Profile',
+          }}
+        />
+        <Stack.Screen
+          name="UserProfile"
+          component={UserProfileScreen}
+          options={{
+            title: 'User Profile',
+          }}
+        />
+        <Stack.Screen
+          name="UserReviews"
+          component={UserReviewsScreen}
+          options={{
+            title: 'User Reviews',
+          }}
+        />
+        <Stack.Screen
+          name="UserFavorites"
+          component={UserFavoritesScreen}
+          options={{
+            title: 'User Favorites',
           }}
         />
       </Stack.Navigator>
