@@ -5,18 +5,22 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { HomeScreen } from '../screens/HomeScreen';
 import { StrainScreen } from '../screens/StrainScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
+import { AddReviewScreen } from '../screens/AddReviewScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import UserReviewsScreen from '../screens/UserReviewsScreen';
 import UserFavoritesScreen from '../screens/UserFavoritesScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 // Define the type for the root stack navigator
 export type RootStackParamList = {
   MainTabs: undefined;
   Strain: { strainId: string };
   Review: { reviewId: string };
+  AddReview: undefined;
   Profile: undefined;
   UserProfile: { userId: string };
   UserReviews: { userId: string };
@@ -50,6 +54,8 @@ const DiaryScreen = () => (
 );
 
 const MainTabs = () => {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -110,7 +116,7 @@ const MainTabs = () => {
                 shadowRadius: 3,
                 elevation: 5,
               }}
-              onPress={() => alert('Add new review or log')}
+              onPress={() => navigation.navigate('AddReview')}
             >
               <Feather name="plus" size={24} color="#fff" />
             </TouchableOpacity>
@@ -204,6 +210,13 @@ export const Navigation = () => {
           component={UserFavoritesScreen}
           options={{
             title: 'User Favorites',
+          }}
+        />
+        <Stack.Screen
+          name="AddReview"
+          component={AddReviewScreen}
+          options={{
+            title: 'Add Review',
           }}
         />
       </Stack.Navigator>
