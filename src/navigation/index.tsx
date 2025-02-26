@@ -24,7 +24,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Strain: { strainId: string };
   Review: { reviewId: string };
-  AddReview: undefined;
+  AddReview: { strainId?: string };
   Profile: undefined;
   UserProfile: { userId: string };
   UserReviews: { userId: string };

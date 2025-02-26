@@ -34,6 +34,11 @@ export type Review = {
   effects: string[];
   flavors: string[];
   created_at: string;
+  profiles?: {
+    id: string;
+    username: string;
+    avatar_url?: string;
+  };
 };
 
 export type List = {

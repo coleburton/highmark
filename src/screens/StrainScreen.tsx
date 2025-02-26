@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, FlatList, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, FlatList, ActivityIndicator, Animated, Modal, Alert } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { mockStrains, mockReviews, mockUsers, mockLists } from '../data/mockData';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { getAllStrainImages, hasMultipleImages, getStrainImage } from '../utils/imageUtils';
 import { ListModal } from '../components/ListModal';
 import { List, Strain, Review } from '../types';
@@ -15,6 +15,7 @@ type RootStackParamList = {
   Strain: { strainId: string };
   Review: { reviewId: string };
   UserProfile: { userId: string };
+  AddReview: { strainId: string };
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Strain'>;
@@ -23,11 +24,34 @@ type RatingCounts = {
   [K in 1|2|3|4|5]: number;
 };
 
+// Simple Rating component
+const Rating = ({ value, size = 16, readonly = false }: { value: number, size?: number, readonly?: boolean }) => {
+  const stars = [];
+  for (let i = 1; i <= 5; i++) {
+    stars.push(
+      <MaterialCommunityIcons
+        key={i}
+        name={i <= value ? 'star' : 'star-outline'}
+        size={size}
+        color={i <= value ? '#F59E0B' : '#6B7280'}
+      />
+    );
+  }
+  return <View style={{ flexDirection: 'row' }}>{stars}</View>;
+};
+
+// Format date helper function
+const formatDate = (dateString: string) => {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 export const StrainScreen = ({ route, navigation }: Props) => {
   const { strainId } = route.params;
   const [loading, setLoading] = useState(true);
   const [strain, setStrain] = useState<Strain | undefined>(strainCache.get(strainId));
-  const [strainReviews, setStrainReviews] = useState<Review[]>(reviewCache.get(strainId) || []);
+  const [strainReviews, setStrainReviews] = useState<Review[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [listModalVisible, setListModalVisible] = useState(false);
   
@@ -101,27 +125,38 @@ export const StrainScreen = ({ route, navigation }: Props) => {
   
   // Separate function to fetch reviews
   const fetchReviews = async () => {
+    setLoading(true);
     try {
-      const { data: supabaseReviews } = await supabase
-        .from('reviews')
-        .select('*')
-        .eq('strain_id', strainId);
-        
-      if (supabaseReviews && supabaseReviews.length > 0) {
-        const typedReviews = supabaseReviews as Review[];
-        setStrainReviews(typedReviews);
-        reviewCache.set(strainId, typedReviews);
-      } else {
-        // Fallback to mock data if no reviews in Supabase
-        const mockStrainReviews = mockReviews.filter((r) => r.strain_id === strainId);
-        setStrainReviews(mockStrainReviews);
-        reviewCache.set(strainId, mockStrainReviews);
+      // Make sure strain is defined before accessing its id
+      if (!strain) {
+        console.error('Strain is undefined');
+        return;
       }
+      
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(`
+          *,
+          profiles (
+            id,
+            username,
+            avatar_url
+          )
+        `)
+        .eq('strain_id', strain.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching reviews:', error);
+        return;
+      }
+
+      console.log('Fetched reviews:', data);
+      setStrainReviews(data || []);
     } catch (error) {
-      console.error('Error fetching reviews:', error);
-      const mockStrainReviews = mockReviews.filter((r) => r.strain_id === strainId);
-      setStrainReviews(mockStrainReviews);
-      reviewCache.set(strainId, mockStrainReviews);
+      console.error('Error in fetchReviews:', error);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -305,6 +340,102 @@ export const StrainScreen = ({ route, navigation }: Props) => {
     );
   }
 
+  const renderReviewItem = ({ item }: { item: Review }) => {
+    // Get the user profile from the review
+    const userProfile = item.profiles;
+    
+    return (
+      <View style={styles.reviewItem}>
+        <View style={styles.reviewHeader}>
+          <View style={styles.userInfo}>
+            <Image 
+              source={
+                userProfile?.avatar_url 
+                  ? { uri: userProfile.avatar_url } 
+                  : require('../../assets/images/avatar-placeholder.png')
+              } 
+              style={styles.userAvatar} 
+            />
+            <View>
+              <Text style={styles.userName}>
+                {userProfile?.username || 'Anonymous User'}
+              </Text>
+              <View style={styles.ratingContainer}>
+                <Rating 
+                  value={item.rating} 
+                  size={16} 
+                  readonly 
+                />
+                <Text style={styles.reviewDate}>
+                  {formatDate(item.created_at)}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={styles.moreButton}
+            onPress={() => console.log('More options')}
+          >
+            <Feather name="more-vertical" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+        
+        <Text style={styles.reviewText}>{item.review_text}</Text>
+        
+        {item.effects && item.effects.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsTitle}>Effects:</Text>
+            <View style={styles.tagsList}>
+              {item.effects.map((effect, index) => (
+                <View key={`effect-${index}`} style={styles.tagItem}>
+                  <Text style={styles.tagText}>{effect}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
+        {item.flavors && item.flavors.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Text style={styles.tagsTitle}>Flavors:</Text>
+            <View style={styles.tagsList}>
+              {item.flavors.map((flavor, index) => (
+                <View key={`flavor-${index}`} style={styles.tagItem}>
+                  <Text style={styles.tagText}>{flavor}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+        
+        <View style={styles.reviewActions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => console.log('Like review')}
+          >
+            <Feather name="thumbs-up" size={18} color="#9CA3AF" />
+            <Text style={styles.actionText}>0</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => console.log('Comment on review')}
+          >
+            <Feather name="message-circle" size={18} color="#9CA3AF" />
+            <Text style={styles.actionText}>0</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => console.log('Share review')}
+          >
+            <Feather name="share-2" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderStars = (rating: number) => (
     <View style={styles.starsContainer}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -481,35 +612,12 @@ export const StrainScreen = ({ route, navigation }: Props) => {
               <View style={styles.ratingScoreContainer}>
                 <Text style={styles.ratingScoreText}>{reviewStats.averageRating.toFixed(1)}</Text>
                 <View style={styles.ratingStars}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <MaterialCommunityIcons
-                      key={star}
-                      name="star"
-                      size={16}
-                      color={star <= Math.round(reviewStats.averageRating) ? "#10B981" : "#27272A"}
-                      style={{ marginHorizontal: -1 }}
-                    />
-                  ))}
+                  {renderStars(reviewStats.averageRating)}
                 </View>
               </View>
               
               <View style={styles.histogramContainer}>
-                {([5, 4, 3, 2, 1] as const).map(rating => (
-                  <View key={rating} style={styles.histogramBarRow}>
-                    <Text style={styles.histogramRatingNumber}>{rating}</Text>
-                    <View style={styles.histogramBarWrapper}>
-                      <View 
-                        style={[
-                          styles.histogramBarFill, 
-                          { 
-                            width: `${(reviewStats.ratingCounts[rating] / reviewStats.maxCount) * 100}%`,
-                            backgroundColor: "#10B981"
-                          }
-                        ]} 
-                      />
-                    </View>
-                  </View>
-                ))}
+                {([5, 4, 3, 2, 1] as const).map(rating => renderHistogramBar(rating, reviewStats.ratingCounts[rating]))}
               </View>
             </View>
             
@@ -524,8 +632,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             <TouchableOpacity
               style={styles.addReviewButton}
               onPress={() => {
-                // TODO: Navigate to add review screen
-                console.log('Add review');
+                navigation.navigate('AddReview', { strainId: strain.id });
               }}
             >
               <Text style={styles.addReviewText}>Write a Review</Text>
@@ -542,12 +649,12 @@ export const StrainScreen = ({ route, navigation }: Props) => {
                     onPress={() => navigation.navigate('UserProfile', { userId: review.user_id })}
                   >
                     <Image
-                      source={{ uri: mockUsers.find(user => user.id === review.user_id)?.avatar_url || 'https://via.placeholder.com/40' }}
+                      source={{ uri: (review.profiles?.avatar_url || mockUsers.find(user => user.id === review.user_id)?.avatar_url || 'https://via.placeholder.com/40') }}
                       style={styles.avatar}
                     />
                     <View style={styles.reviewHeaderText}>
                       <Text style={styles.username}>
-                        {mockUsers.find(user => user.id === review.user_id)?.username || 'Unknown User'}
+                        {review.profiles?.username || mockUsers.find(user => user.id === review.user_id)?.username || 'Unknown User'}
                       </Text>
                       <View style={styles.reviewRating}>
                         {renderStars(review.rating)}
@@ -636,59 +743,482 @@ export const StrainScreen = ({ route, navigation }: Props) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#121212',
+  },
+  scrollContainer: {
+    flexGrow: 1,
+  },
+  imageContainer: {
+    height: 300,
+    width: '100%',
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 100,
+  },
+  header: {
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    marginBottom: 16,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  tag: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+  },
+  tagText: {
+    color: '#10B981',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  description: {
+    fontSize: 16,
+    color: '#D1D5DB',
+    lineHeight: 24,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  effectsContainer: {
+    marginBottom: 24,
+  },
+  effectsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  effectsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  effectItem: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+  },
+  effectText: {
+    color: '#10B981',
+    fontSize: 14,
+  },
+  flavorsContainer: {
+    marginBottom: 24,
+  },
+  flavorsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 16,
+  },
+  flavorsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  flavorItem: {
+    backgroundColor: 'rgba(249,115,22,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(249,115,22,0.3)',
+  },
+  flavorText: {
+    color: '#F97316',
+    fontSize: 14,
+  },
+  reviewsContainer: {
+    marginBottom: 24,
+  },
+  reviewsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reviewsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  reviewsCount: {
+    fontSize: 16,
+    color: '#9CA3AF',
+  },
+  reviewsSummary: {
+    backgroundColor: '#18181B',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  reviewsRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  reviewsRatingScore: {
+    marginRight: 16,
+  },
+  ratingScoreText: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    textAlign: 'center',
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  histogramContainer: {
+    flex: 1,
+  },
+  histogramRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  histogramLabel: {
+    width: 20,
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  histogramBarContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#27272A',
+    borderRadius: 4,
+    marginHorizontal: 8,
+    overflow: 'hidden',
+  },
+  histogramBar: {
+    height: '100%',
+    backgroundColor: '#10B981',
+    borderRadius: 4,
+  },
+  histogramCount: {
+    width: 30,
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'right',
+  },
+  writeReviewButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  writeReviewText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  reviewsList: {
+    marginBottom: 24,
+  },
+  reviewItem: {
+    backgroundColor: '#18181B',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#27272A',
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  userName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  reviewDate: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  moreButton: {
+    padding: 4,
+  },
+  reviewText: {
+    color: '#D1D5DB',
+    fontSize: 16,
+    lineHeight: 24,
+    marginBottom: 16,
+  },
+  tagsContainer: {
+    marginBottom: 16,
+  },
+  tagsTitle: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  tagsList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tagItem: {
+    backgroundColor: 'rgba(16,185,129,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+  },
+  reviewActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+  },
+  actionText: {
+    color: '#ffffff',
+    fontSize: 14,
+    marginLeft: 4,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  histogramBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  histogramRatingNumber: {
+    width: 20,
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  histogramBarWrapper: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#27272A',
+    borderRadius: 4,
+    marginHorizontal: 8,
+    overflow: 'hidden',
+  },
+  histogramBarFill: {
+    height: '100%',
+    borderRadius: 4,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#000000',
+    backgroundColor: '#121212',
   },
-  loadingText: {
-    color: '#ffffff',
-    fontSize: 16,
-    marginTop: 16,
+  imageIndicatorContainer: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
-  errorText: {
-    color: '#ffffff',
-    fontSize: 16,
-    textAlign: 'center',
-    marginTop: 20,
+  imageIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    marginHorizontal: 4,
   },
-  notFoundContainer: {
+  imageIndicatorActive: {
+    backgroundColor: '#ffffff',
+  },
+  addToListButton: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
-  notFoundIcon: {
-    marginBottom: 24,
-    opacity: 0.7,
+  modalContent: {
+    width: '80%',
+    backgroundColor: '#18181B',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
   },
-  notFoundTitle: {
-    color: '#ffffff',
-    fontSize: 24,
+  modalTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 12,
+    color: '#ffffff',
+    marginBottom: 16,
     textAlign: 'center',
   },
-  notFoundText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 32,
-    lineHeight: 24,
-  },
-  backButton: {
-    backgroundColor: '#10B981',
+  modalListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#27272A',
   },
-  backButtonText: {
+  modalListItemText: {
+    fontSize: 16,
+    color: '#ffffff',
+    flex: 1,
+  },
+  modalCloseButton: {
+    marginTop: 16,
+    backgroundColor: '#27272A',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  modalCloseButtonText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: 'bold',
+  },
+  createListButton: {
+    marginTop: 16,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  createListButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalInput: {
+    backgroundColor: '#27272A',
+    borderRadius: 8,
+    padding: 12,
+    color: '#ffffff',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalCancelButton: {
+    flex: 1,
+    backgroundColor: '#4B5563',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  modalSaveButton: {
+    flex: 1,
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  modalButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  checkIcon: {
+    marginLeft: 8,
+    opacity: 0.7,
   },
   heroSection: {
     height: Dimensions.get('window').height * 0.5,
@@ -724,24 +1254,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 24,
   },
-  actionButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 8,
-    marginHorizontal: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#10B981',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
   activeActionButton: {
     backgroundColor: '#10B981',
     borderColor: '#10B981',
-  },
-  actionButtonText: {
-    color: '#ffffff',
-    marginTop: 4,
-    fontSize: 12,
   },
   activeActionButtonText: {
     color: '#FFFFFF',
@@ -759,125 +1274,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#27272A',
   },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
   statDivider: {
     width: 1,
     backgroundColor: '#27272A',
     marginHorizontal: 16,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  description: {
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 16,
-    lineHeight: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 16,
-  },
-  tags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    backgroundColor: 'rgba(16,185,129,0.2)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.3)',
-  },
-  tagText: {
-    color: '#10B981',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  flavorTag: {
-    backgroundColor: 'rgba(124,58,237,0.2)',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.3)',
-  },
-  flavorTagText: {
-    color: '#8B5CF6',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  reviewStats: {
-    backgroundColor: '#18181B',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#27272A',
-  },
-  averageRating: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  averageRatingNumber: {
-    fontSize: 48,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  totalReviews: {
-    color: '#6B7280',
-    marginTop: 8,
-  },
-  histogram: {
-    gap: 8,
-  },
-  histogramRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  histogramLabel: {
-    width: 24,
-    color: '#6B7280',
-  },
-  histogramBarContainer: {
-    flex: 1,
-    height: 20,
-    backgroundColor: '#27272A',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  histogramBar: {
-    height: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 4,
-  },
-  histogramCount: {
-    width: 24,
-    color: '#6B7280',
-    textAlign: 'right',
   },
   addReviewButton: {
     backgroundColor: '#10B981',
@@ -899,10 +1299,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#27272A',
   },
-  reviewHeader: {
-    flexDirection: 'row',
-    marginBottom: 12,
-  },
   avatar: {
     width: 40,
     height: 40,
@@ -911,20 +1307,6 @@ const styles = StyleSheet.create({
   },
   reviewHeaderText: {
     flex: 1,
-  },
-  username: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  reviewRating: {
-    flexDirection: 'row',
-  },
-  reviewText: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    lineHeight: 20,
   },
   imageDots: {
     position: 'absolute',
@@ -968,36 +1350,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  userContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  ratingOverlay: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 10,
-  },
-  ratingContainer: {
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  ratingText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginLeft: 4,
-  },
-  ratingCount: {
-    fontSize: 14,
-    color: '#ffffff',
-    marginLeft: 4,
-  },
   ratingsContainer: {
     flexDirection: 'row',
     backgroundColor: '#18181B',
@@ -1011,44 +1363,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 60,
     marginRight: 24,
-  },
-  ratingScoreText: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 8,
-  },
-  ratingStars: {
-    flexDirection: 'row',
-  },
-  histogramContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-    height: 120,
-  },
-  histogramBarRow: {
-    height: 16,
-    marginVertical: 3,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  histogramRatingNumber: {
-    width: 20,
-    color: '#6B7280',
-    fontSize: 12,
-    marginRight: 8,
-    textAlign: 'center',
-  },
-  histogramBarWrapper: {
-    flex: 1,
-    height: '100%',
-    backgroundColor: '#27272A',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  histogramBarFill: {
-    height: '100%',
-    borderRadius: 4,
   },
   totalReviewsText: {
     color: '#6B7280',
@@ -1092,5 +1406,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     opacity: 0.7,
+  },
+  ratingOverlay: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 10,
+  },
+  ratingText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginLeft: 4,
+  },
+  ratingCount: {
+    fontSize: 14,
+    color: '#ffffff',
+    marginLeft: 4,
   },
 }); 

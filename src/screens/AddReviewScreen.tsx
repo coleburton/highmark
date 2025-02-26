@@ -49,14 +49,20 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
   }, [navigation]);
 
   // State for the review form
-  const [selectedStrain, setSelectedStrain] = useState<string | null>(null);
+  const [selectedStrainId, setSelectedStrainId] = useState<string | null>(route.params?.strainId || null);
   const [rating, setRating] = useState<number>(0);
   const [reviewText, setReviewText] = useState<string>('');
   const [selectedEffects, setSelectedEffects] = useState<string[]>([]);
   const [selectedFlavors, setSelectedFlavors] = useState<string[]>([]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isFocus, setIsFocus] = useState(false);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [dropdownWidth, setDropdownWidth] = useState(0);
+  const [dropdownPosition, setDropdownPosition] = useState({ x: 0, y: 0 });
+  const searchInputRef = React.useRef<View>(null);
+  const animatedValue = React.useRef(new Animated.Value(0)).current;
   const [selectedStrainDetails, setSelectedStrainDetails] = useState<any>(null);
   const [filteredStrains, setFilteredStrains] = useState(mockStrains.map(strain => ({
     label: strain.name,
@@ -64,8 +70,22 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
     type: strain.type
   })));
   const [scaleAnim] = useState(new Animated.Value(1));
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const dropdownRef = React.useRef<View>(null);
+
+  // Initialize the strain name if a strainId was passed
+  useEffect(() => {
+    if (route.params?.strainId) {
+      // Pre-select the strain if it was passed in the route params
+      setSelectedStrainId(route.params.strainId);
+      
+      // You might want to fetch the strain details here if needed
+      // For now, we'll just use the mockStrains data
+      const strain = mockStrains.find(s => s.id === route.params.strainId);
+      if (strain) {
+        setSearchQuery(strain.name);
+      }
+    }
+  }, [route.params?.strainId]);
 
   // Filter strains based on search query
   useEffect(() => {
@@ -98,7 +118,7 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
       tension: 300,
       useNativeDriver: true,
     }).start();
-    setIsFocus(true);
+    setIsFocused(true);
   };
   
   const handlePressOut = () => {
@@ -113,20 +133,20 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
   // Clear search and hide results
   const clearSearch = () => {
     setSearchQuery('');
-    setIsFocus(false);
+    setIsFocused(false);
   };
 
   // Hide results when clicking outside
   const hideResults = () => {
-    setIsFocus(false);
+    setIsFocused(false);
   };
 
   // Handle strain selection
   const handleSelectStrain = (item: any) => {
-    setSelectedStrain(item.value);
+    setSelectedStrainId(item.value);
     setSelectedStrainDetails(item);
     setSearchQuery(item.label);
-    setIsFocus(false);
+    setIsFocused(false);
   };
 
   // Render the selected strain value
@@ -228,7 +248,7 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
 
   // Submit the review
   const submitReview = () => {
-    if (!selectedStrain || searchQuery.trim() === '') {
+    if (!selectedStrainId || searchQuery.trim() === '') {
       Alert.alert('Error', 'Please select a strain');
       return;
     }
@@ -240,7 +260,7 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
 
     // In a real app, we would send this data to an API
     const reviewData = {
-      strain_id: selectedStrain,
+      strain_id: selectedStrainId,
       rating,
       review_text: reviewText,
       effects: selectedEffects,
@@ -254,32 +274,31 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
     ]);
   };
 
-  // Function to measure dropdown position
+  // Measure dropdown position
   const measureDropdown = () => {
     if (dropdownRef.current) {
       dropdownRef.current.measure((x, y, width, height, pageX, pageY) => {
-        console.log('Dropdown measurements:', { x, y, width, height, pageX, pageY });
-        setDropdownPosition({
-          top: pageY + height + 4, // Add small offset
-          left: pageX,
-          width: width
+        setDropdownPosition({ 
+          x: pageX, 
+          y: pageY + height 
         });
+        setDropdownWidth(width);
       });
     }
   };
 
   // Measure dropdown position when focus changes or when layout changes
   useEffect(() => {
-    if (isFocus) {
+    if (isFocused) {
       // Small delay to ensure layout is complete
       setTimeout(measureDropdown, 100);
     }
-  }, [isFocus]);
+  }, [isFocused]);
 
   return (
     <TouchableWithoutFeedback onPress={() => {
-      if (isFocus) {
-        setIsFocus(false);
+      if (isFocused) {
+        setIsFocused(false);
       } else {
         Keyboard.dismiss();
       }
@@ -290,7 +309,7 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
             style={styles.scrollView} 
             contentContainerStyle={styles.scrollViewContent}
             keyboardShouldPersistTaps="handled"
-            scrollEnabled={!isFocus}
+            scrollEnabled={!isFocused}
           >
             <Text style={styles.title}>Add Review</Text>
             
@@ -301,16 +320,16 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
                 style={styles.dropdownContainer}
                 ref={dropdownRef}
                 onLayout={() => {
-                  if (isFocus) {
+                  if (isFocused) {
                     measureDropdown();
                   }
                 }}
               >
                 <TouchableOpacity 
-                  style={[styles.dropdown, isFocus && { borderColor: '#10B981' }]}
-                  onPress={() => setIsFocus(!isFocus)}
+                  style={[styles.dropdown, isFocused && { borderColor: '#10B981' }]}
+                  onPress={() => setIsFocused(!isFocused)}
                 >
-                  {selectedStrain ? (
+                  {selectedStrainId ? (
                     renderSelectedValue()
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -321,11 +340,11 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
                         placeholderTextColor="#9CA3AF"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
-                        onFocus={() => setIsFocus(true)}
+                        onFocus={() => setIsFocused(true)}
                       />
                     </View>
                   )}
-                  <Feather name={isFocus ? "chevron-up" : "chevron-down"} size={20} color="#9CA3AF" />
+                  <Feather name={isFocused ? "chevron-up" : "chevron-down"} size={20} color="#9CA3AF" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -453,23 +472,22 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
           
           {/* Modal for dropdown list */}
           <Modal
-            visible={isFocus}
+            visible={isFocused}
             transparent={true}
             animationType="fade"
-            onRequestClose={() => setIsFocus(false)}
+            onRequestClose={() => setIsFocused(false)}
             statusBarTranslucent={true}
           >
-            <TouchableWithoutFeedback onPress={() => setIsFocus(false)}>
+            <TouchableWithoutFeedback onPress={() => setIsFocused(false)}>
               <View style={styles.modalOverlay}>
                 <TouchableWithoutFeedback>
                   <View 
                     style={[
-                      styles.dropdownListContainer,
-                      {
-                        position: 'absolute',
-                        top: dropdownPosition.top,
-                        left: 16,
-                        right: 16,
+                      styles.dropdownList, 
+                      { 
+                        width: dropdownWidth, 
+                        left: dropdownPosition.x, 
+                        top: dropdownPosition.y 
                       }
                     ]}
                   >
@@ -486,7 +504,7 @@ export const AddReviewScreen = ({ navigation, route }: Props) => {
                             onPress={() => handleSelectStrain(item)}
                             style={[
                               styles.dropdownItem,
-                              selectedStrain === item.value && styles.selectedItem
+                              selectedStrainId === item.value && styles.selectedItem
                             ]}
                             activeOpacity={0.7}
                           >
@@ -765,21 +783,6 @@ const styles = StyleSheet.create({
   dropdownContainer: {
     position: 'relative',
     zIndex: 1,
-  },
-  dropdownListContainer: {
-    backgroundColor: '#121212',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#333',
-    marginTop: 4,
-    maxHeight: 300,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-    zIndex: 1000,
-    overflow: 'hidden',
   },
   dropdownList: {
     maxHeight: 300,
