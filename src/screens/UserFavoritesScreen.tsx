@@ -11,12 +11,15 @@ type UserFavoritesNavigationProp = NativeStackNavigationProp<RootStackParamList>
 
 // Define a type for the strain data from favorites
 interface FavoriteStrain {
-  id: string;
+  strain_id: string;
   name: string;
   type: string;
   image_url?: string;
-  THC_percentage?: number;
-  CBD_percentage?: number;
+  thc_percentage?: number;
+  cbd_percentage?: number;
+  avg_rating?: number;
+  favorite_id: string;
+  created_at: string;
 }
 
 export default function UserFavoritesScreen({ route }: UserFavoritesScreenProps) {
@@ -50,48 +53,102 @@ export default function UserFavoritesScreen({ route }: UserFavoritesScreenProps)
 
   async function fetchUserFavorites() {
     try {
-      const { data, error } = await supabase
+      setLoading(true);
+      
+      // Try to use the stored function defined in supabase_instructions.md
+      try {
+        const { data, error } = await supabase
+          .rpc('get_user_favorites', { user_uuid: userId });
+          
+        if (error) throw error;
+        
+        if (data) {
+          setFavorites(data);
+          return; // Exit early if successful
+        }
+      } catch (rpcError) {
+        console.error('RPC function not available:', rpcError);
+        // Continue to fallback
+      }
+      
+      // Fallback: Fetch favorites and join with strains manually
+      // First, get the favorites
+      const { data: favoritesData, error: favoritesError } = await supabase
         .from('favorites')
-        .select(`
-          strain_id,
-          strains (
-            id,
-            name,
-            type,
-            image_url,
-            THC_percentage,
-            CBD_percentage
-          )
-        `)
+        .select('id, strain_id, created_at')
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
         
-      if (error) throw error;
+      if (favoritesError) throw favoritesError;
       
-      // Extract the strain data from the favorites
-      if (data) {
-        // Use any type to bypass TypeScript checking for this complex nested structure
-        const strainData: FavoriteStrain[] = (data as any[]).map(item => ({
-          id: item.strains.id,
-          name: item.strains.name,
-          type: item.strains.type,
-          image_url: item.strains.image_url,
-          THC_percentage: item.strains.THC_percentage,
-          CBD_percentage: item.strains.CBD_percentage
-        }));
-        setFavorites(strainData);
+      if (favoritesData && favoritesData.length > 0) {
+        // Get all strain IDs from favorites
+        const strainIds = favoritesData.map(fav => fav.strain_id);
+        
+        // Fetch strain details for these IDs
+        const { data: strainsData, error: strainsError } = await supabase
+          .from('strains')
+          .select('id, name, type, image_url, thc_percentage, cbd_percentage')
+          .in('id', strainIds);
+          
+        if (strainsError) throw strainsError;
+        
+        if (strainsData) {
+          // Create a map of strain data by ID for easy lookup
+          const strainsMap = new Map(
+            strainsData.map(strain => [strain.id, strain])
+          );
+          
+          // Combine favorites with strain data
+          const combinedData: FavoriteStrain[] = favoritesData.map(fav => {
+            const strain = strainsMap.get(fav.strain_id);
+            return {
+              favorite_id: fav.id,
+              strain_id: fav.strain_id,
+              created_at: fav.created_at,
+              name: strain?.name || 'Unknown Strain',
+              type: strain?.type || 'Unknown',
+              image_url: strain?.image_url,
+              thc_percentage: strain?.thc_percentage,
+              cbd_percentage: strain?.cbd_percentage
+            };
+          });
+          
+          setFavorites(combinedData);
+        }
+      } else {
+        setFavorites([]);
       }
     } catch (error) {
       console.error('Error fetching favorites:', error);
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
   }
 
+  const handleRemoveFavorite = async (favoriteId: string) => {
+    try {
+      const { error } = await supabase
+        .from('favorites')
+        .delete()
+        .eq('id', favoriteId);
+        
+      if (error) throw error;
+      
+      // Update the UI by removing the deleted favorite
+      setFavorites(prevFavorites => 
+        prevFavorites.filter(fav => fav.favorite_id !== favoriteId)
+      );
+    } catch (error) {
+      console.error('Error removing favorite:', error);
+    }
+  };
+
   const renderFavoriteItem = ({ item }: { item: FavoriteStrain }) => (
     <TouchableOpacity
       style={styles.favoriteCard}
-      onPress={() => navigation.navigate('Strain', { strainId: item.id })}
+      onPress={() => navigation.navigate('Strain', { strainId: item.strain_id })}
     >
       <Image
         source={{ uri: item.image_url || 'https://via.placeholder.com/150' }}
@@ -101,14 +158,26 @@ export default function UserFavoritesScreen({ route }: UserFavoritesScreenProps)
         <Text style={styles.strainName}>{item.name}</Text>
         <Text style={styles.strainType}>{item.type}</Text>
         <View style={styles.percentages}>
-          {item.THC_percentage !== undefined && (
-            <Text style={styles.percentage}>THC: {item.THC_percentage}%</Text>
+          {item.thc_percentage !== undefined && (
+            <Text style={styles.percentage}>THC: {item.thc_percentage}%</Text>
           )}
-          {item.CBD_percentage !== undefined && (
-            <Text style={styles.percentage}>CBD: {item.CBD_percentage}%</Text>
+          {item.cbd_percentage !== undefined && (
+            <Text style={styles.percentage}>CBD: {item.cbd_percentage}%</Text>
+          )}
+          {item.avg_rating !== undefined && (
+            <View style={styles.ratingContainer}>
+              <Text style={styles.ratingText}>{item.avg_rating.toFixed(1)}</Text>
+              <Text style={styles.ratingIcon}>★</Text>
+            </View>
           )}
         </View>
       </View>
+      <TouchableOpacity 
+        style={styles.removeButton}
+        onPress={() => handleRemoveFavorite(item.favorite_id)}
+      >
+        <Text style={styles.removeButtonText}>Remove</Text>
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -136,7 +205,7 @@ export default function UserFavoritesScreen({ route }: UserFavoritesScreenProps)
         <FlatList
           data={favorites}
           renderItem={renderFavoriteItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.favorite_id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.favoritesList}
           numColumns={2}
@@ -191,6 +260,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden',
     maxWidth: '47%',
+    position: 'relative',
   },
   strainImage: {
     width: '100%',
@@ -214,11 +284,29 @@ const styles = StyleSheet.create({
   percentages: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    alignItems: 'center',
   },
   percentage: {
     color: '#10B981',
     fontSize: 12,
     marginRight: 8,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  ratingText: {
+    color: '#FFD700',
+    fontSize: 12,
+    marginRight: 2,
+  },
+  ratingIcon: {
+    color: '#FFD700',
+    fontSize: 12,
   },
   emptyContainer: {
     flex: 1,
@@ -228,5 +316,19 @@ const styles = StyleSheet.create({
   emptyText: {
     color: 'rgba(255, 255, 255, 0.5)',
     fontSize: 16,
+  },
+  removeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(255, 59, 48, 0.8)',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  removeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 }); 
