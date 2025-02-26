@@ -1,0 +1,11 @@
+-- Sample reviews
+INSERT INTO reviews (id, user_id, strain_id, rating, review_text, effects, flavors)
+VALUES
+  ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000101', 4.5, 'Great strain for daytime use. Helps with my anxiety without making me too sleepy.', ARRAY['Happy', 'Relaxed', 'Creative'], ARRAY['Berry', 'Sweet']),
+  ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000103', 5.0, 'My go-to strain for creative work. The energy boost is perfect without any jitters.', ARRAY['Energetic', 'Creative', 'Focused'], ARRAY['Diesel', 'Citrus']),
+  ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000102', 4.0, 'Excellent for pain relief. Helps me sleep through the night.', ARRAY['Relaxed', 'Pain Relief', 'Sleepy'], ARRAY['Earthy', 'Pine']),
+  ('00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-000000000104', 4.5, 'Perfect evening strain. Helps me unwind after a long day.', ARRAY['Relaxed', 'Sleepy', 'Happy'], ARRAY['Grape', 'Sweet']),
+  ('00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000105', 4.0, 'Great daytime strain. Clear-headed high that helps with focus.', ARRAY['Focused', 'Creative', 'Uplifted'], ARRAY['Pine', 'Earthy']),
+  ('00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000106', 5.0, 'Amazing flavor and potent effects. One of my new favorites.', ARRAY['Happy', 'Euphoric', 'Relaxed'], ARRAY['Sweet', 'Vanilla']),
+  ('00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000107', 5.0, E'One of the best strains I\'ve tried. Perfect balance of effects and amazing flavor.', ARRAY['Happy', 'Euphoric', 'Creative'], ARRAY['Sweet', 'Earthy']),
+  ('00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000108', 4.0, 'Great for insomnia. Knocks me right out and I wake up feeling refreshed.', ARRAY['Relaxed', 'Sleepy', 'Happy'], ARRAY['Grape', 'Berry']); 
