@@ -50,6 +50,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [expandedReviews, setExpandedReviews] = useState<string[]>([]);
   const navigation = useNavigation<UserProfileNavigationProp>();
 
   useEffect(() => {
@@ -259,9 +260,18 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
     }
   }
 
+  // Toggle expanded status for a review
+  const toggleExpandedReview = (reviewId: string) => {
+    setExpandedReviews(prev => 
+      prev.includes(reviewId) 
+        ? prev.filter(id => id !== reviewId) 
+        : [...prev, reviewId]
+    );
+  };
+
   const renderReviewItem = ({ item }: { item: ExtendedReview }) => {
-    // State to track if the review is expanded
-    const [expanded, setExpanded] = React.useState(false);
+    // Check if the review is expanded using the expandedReviews state
+    const isExpanded = expandedReviews.includes(item.id);
     
     // Check if the review text is long enough to need expansion
     const isLongReview = item.review_text.length > 80;
@@ -309,17 +319,17 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
         </View>
         <Text 
           style={styles.reviewText} 
-          numberOfLines={expanded ? undefined : 2}
+          numberOfLines={isExpanded ? undefined : 2}
         >
           {item.review_text}
         </Text>
         {isLongReview && (
           <TouchableOpacity 
-            onPress={() => setExpanded(!expanded)} 
+            onPress={() => toggleExpandedReview(item.id)} 
             style={styles.readMoreButton}
           >
             <Text style={styles.readMoreText}>
-              {expanded ? 'Show Less' : 'Read More'}
+              {isExpanded ? 'Show Less' : 'Read More'}
             </Text>
           </TouchableOpacity>
         )}
