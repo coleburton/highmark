@@ -436,4 +436,22 @@ export const mockLists: List[] = [
     strains: ['strain-3', 'strain-1'],
     created_at: '2024-01-27T00:00:00Z',
   }
+];
+
+// Mock list followers data
+export interface ListFollow {
+  id: string;
+  user_id: string;
+  list_id: string;
+  created_at: string;
+}
+
+export const mockListFollowers: ListFollow[] = [
+  { id: 'listfollow-1', user_id: 'user-2', list_id: 'list-1', created_at: '2024-01-30T00:00:00Z' },
+  { id: 'listfollow-2', user_id: 'user-3', list_id: 'list-1', created_at: '2024-01-31T00:00:00Z' },
+  { id: 'listfollow-3', user_id: 'user-4', list_id: 'list-1', created_at: '2024-02-01T00:00:00Z' },
+  { id: 'listfollow-4', user_id: 'user-1', list_id: 'list-2', created_at: '2024-02-02T00:00:00Z' },
+  { id: 'listfollow-5', user_id: 'user-3', list_id: 'list-2', created_at: '2024-02-03T00:00:00Z' },
+  { id: 'listfollow-6', user_id: 'user-1', list_id: 'list-3', created_at: '2024-02-04T00:00:00Z' },
+  { id: 'listfollow-7', user_id: 'user-2', list_id: 'list-3', created_at: '2024-02-05T00:00:00Z' }
 ]; 

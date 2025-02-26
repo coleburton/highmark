@@ -3,11 +3,11 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, FlatList, ActivityIndi
 import { supabase } from '../lib/supabase';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation';
-import type { Review, User, Strain } from '../types';
+import type { Review, User, Strain, List } from '../types';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Feather } from '@expo/vector-icons';
-import { mockUsers, mockReviews, mockStrains, mockFavorites, mockFollows } from '../data/mockData';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { mockUsers, mockReviews, mockStrains, mockFavorites, mockFollows, mockLists, mockListFollowers } from '../data/mockData';
 import { getStrainImage } from '../utils/imageUtils';
 
 type UserProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -42,11 +42,21 @@ interface ExtendedReview extends Review {
   };
 }
 
+// Define a type for public lists
+interface PublicList {
+  id: string;
+  title: string;
+  description?: string;
+  strainCount: number;
+  followerCount: number;
+}
+
 export default function UserProfileScreen({ route }: UserProfileScreenProps) {
   const { userId } = route.params;
   const [user, setUser] = useState<User | null>(null);
   const [reviews, setReviews] = useState<ExtendedReview[]>([]);
   const [favorites, setFavorites] = useState<FavoriteStrain[]>([]);
+  const [publicLists, setPublicLists] = useState<PublicList[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -58,6 +68,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
     fetchUserProfile();
     fetchUserReviews();
     fetchUserFavorites();
+    fetchUserPublicLists();
     checkIfFollowing();
   }, [userId]);
 
@@ -186,6 +197,63 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
       // setFavorites(strainData);
     } catch (error) {
       console.error('Error fetching favorites:', error);
+    }
+  }
+
+  async function fetchUserPublicLists() {
+    try {
+      // Use mock data instead of Supabase
+      const userPublicLists = mockLists
+        .filter(list => list.user_id === userId && list.is_public)
+        .map(list => {
+          // Count followers for this list
+          const followerCount = mockListFollowers.filter(
+            follow => follow.list_id === list.id
+          ).length;
+          
+          return {
+            id: list.id,
+            title: list.title,
+            description: list.description,
+            strainCount: list.strains.length,
+            followerCount: followerCount
+          };
+        })
+        .slice(0, 3); // Get only the first 3 lists
+      
+      setPublicLists(userPublicLists);
+      
+      // In a real app with Supabase:
+      // const { data, error } = await supabase
+      //   .from('lists')
+      //   .select('*')
+      //   .eq('user_id', userId)
+      //   .eq('is_public', true)
+      //   .order('created_at', { ascending: false })
+      //   .limit(3);
+      //   
+      // if (error) throw error;
+      // 
+      // if (data) {
+      //   const listsWithCounts = await Promise.all(data.map(async list => {
+      //     // Get follower count
+      //     const { count: followerCount } = await supabase
+      //       .from('list_followers')
+      //       .select('*', { count: 'exact' })
+      //       .eq('list_id', list.id);
+      //
+      //     return {
+      //       id: list.id,
+      //       title: list.title,
+      //       description: list.description,
+      //       strainCount: list.strains.length,
+      //       followerCount: followerCount || 0
+      //     };
+      //   }));
+      //   setPublicLists(listsWithCounts);
+      // }
+    } catch (error) {
+      console.error('Error fetching public lists:', error);
     }
   }
 
@@ -375,6 +443,36 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
     </TouchableOpacity>
   );
 
+  const renderListItem = ({ item }: { item: PublicList }) => (
+    <TouchableOpacity 
+      style={styles.listCard}
+      onPress={() => navigation.navigate('ListDetail', { listId: item.id })}
+    >
+      <View style={styles.listCardContent}>
+        <Text style={styles.listTitle}>{item.title}</Text>
+        {item.description && (
+          <Text style={styles.listDescription} numberOfLines={1}>
+            {item.description}
+          </Text>
+        )}
+        <View style={styles.listMeta}>
+          <View style={styles.listMetaItem}>
+            <MaterialCommunityIcons name="cannabis" size={14} color="#10B981" />
+            <Text style={styles.listMetaText}>
+              {item.strainCount} {item.strainCount === 1 ? 'strain' : 'strains'}
+            </Text>
+          </View>
+          <View style={styles.listMetaItem}>
+            <MaterialCommunityIcons name="account-group" size={14} color="#3B82F6" />
+            <Text style={styles.listMetaText}>
+              {item.followerCount} {item.followerCount === 1 ? 'follower' : 'followers'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -419,6 +517,35 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
         </View>
       </View>
 
+      {/* Stats Section */}
+      <View style={styles.statsContainer}>
+        <TouchableOpacity 
+          style={styles.statItem}
+          onPress={() => navigation.navigate('UserReviews', { userId })}
+        >
+          <Text style={styles.statNumber}>{reviews.length}</Text>
+          <Text style={styles.statLabel}>Reviews</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.statItem}
+          onPress={() => navigation.navigate('UserFavorites', { userId })}
+        >
+          <Text style={styles.statNumber}>{favorites.length}</Text>
+          <Text style={styles.statLabel}>Favorites</Text>
+        </TouchableOpacity>
+        
+        {publicLists.length > 0 && (
+          <TouchableOpacity 
+            style={styles.statItem}
+            onPress={() => navigation.navigate('UserLists', { userId })}
+          >
+            <Text style={styles.statNumber}>{publicLists.length}</Text>
+            <Text style={styles.statLabel}>Lists</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Favorites</Text>
@@ -441,9 +568,30 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
         )}
       </View>
 
+      {/* Public Lists Section - Only show if user has public lists */}
+      {publicLists.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Lists</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('UserLists', { userId })}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <FlatList
+            data={publicLists}
+            renderItem={renderListItem}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.listsList}
+          />
+        </View>
+      )}
+
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Reviews</Text>
+          <Text style={styles.sectionTitle}>Reviews</Text>
           <TouchableOpacity onPress={() => navigation.navigate('UserReviews', { userId })}>
             <Text style={styles.seeAllText}>See All</Text>
           </TouchableOpacity>
@@ -451,9 +599,9 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
         
         {reviews.length > 0 ? (
           <FlatList
-            data={reviews}
+            data={reviews.slice(0, 3)}
             renderItem={renderReviewItem}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.reviewsList}
           />
@@ -662,5 +810,72 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.5)',
     textAlign: 'center',
     padding: 16,
+  },
+  listCard: {
+    width: 200,
+    marginRight: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  listCardContent: {
+    flex: 1,
+  },
+  listTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  listDescription: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginBottom: 8,
+  },
+  listMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  listMetaText: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginLeft: 4,
+  },
+  listsList: {
+    paddingBottom: 8,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  statLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
   },
 }); 
