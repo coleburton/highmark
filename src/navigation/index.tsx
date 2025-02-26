@@ -10,10 +10,12 @@ import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import UserReviewsScreen from '../screens/UserReviewsScreen';
 import UserFavoritesScreen from '../screens/UserFavoritesScreen';
+import { ListsScreen } from '../screens/ListsScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RouteProp } from '@react-navigation/native';
 
 // Define the type for the root stack navigator
 export type RootStackParamList = {
@@ -25,6 +27,7 @@ export type RootStackParamList = {
   UserProfile: { userId: string };
   UserReviews: { userId: string };
   UserFavorites: { userId: string };
+  ListDetail: { listId: string };
 };
 
 // Define the type for the bottom tab navigator
@@ -40,11 +43,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabStackParamList>();
 
 // Placeholder screen for Lists
-const ListsScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Lists Coming Soon</Text>
-  </View>
-);
+// const ListsScreen = () => (
+//   <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
+//     <Text style={{ color: '#fff', fontSize: 18 }}>Lists Coming Soon</Text>
+//   </View>
+// );
 
 // Placeholder screen for Diary
 const DiaryScreen = () => (
@@ -52,6 +55,17 @@ const DiaryScreen = () => (
     <Text style={{ color: '#fff', fontSize: 18 }}>Diary Coming Soon</Text>
   </View>
 );
+
+// Placeholder screen for ListDetail
+const ListDetailScreen = ({ route }: { route: RouteProp<RootStackParamList, 'ListDetail'> }) => {
+  const { listId } = route.params;
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
+      <Text style={{ color: '#fff', fontSize: 18 }}>List Details Coming Soon</Text>
+      <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>List ID: {listId}</Text>
+    </View>
+  );
+};
 
 const MainTabs = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -219,6 +233,7 @@ export const Navigation = () => {
             title: 'Add Review',
           }}
         />
+        <Stack.Screen name="ListDetail" component={ListDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
