@@ -10,6 +10,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import UserReviewsScreen from '../screens/UserReviewsScreen';
 import UserFavoritesScreen from '../screens/UserFavoritesScreen';
+import UserListsScreen from '../screens/UserListsScreen';
 import { ListsScreen } from '../screens/ListsScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
@@ -27,6 +28,7 @@ export type RootStackParamList = {
   UserProfile: { userId: string };
   UserReviews: { userId: string };
   UserFavorites: { userId: string };
+  UserLists: { userId: string };
   ListDetail: { listId: string };
 };
 
@@ -224,6 +226,13 @@ export const Navigation = () => {
           component={UserFavoritesScreen}
           options={{
             title: 'User Favorites',
+          }}
+        />
+        <Stack.Screen
+          name="UserLists"
+          component={UserListsScreen}
+          options={{
+            title: 'User Lists',
           }}
         />
         <Stack.Screen
