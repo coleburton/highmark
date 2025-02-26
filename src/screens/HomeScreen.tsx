@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, StatusBar, SafeAreaView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { mockStrains, mockReviews, mockUsers } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -74,7 +74,7 @@ export const HomeScreen = () => {
             <MaterialCommunityIcons 
               name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
               size={24} 
-              color={favoriteStrains.includes(item.id) ? "#FF4081" : "#FFFFFF"} 
+              color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
             />
           </TouchableOpacity>
         </View>
@@ -171,58 +171,111 @@ export const HomeScreen = () => {
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <SearchBar 
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        onSubmit={handleSearch}
-      />
-      <Text style={styles.sectionTitle}>Featured Strains</Text>
-      <View style={styles.strainListContainer}>
-        <FlatList
-          data={mockStrains}
-          renderItem={renderStrainCard}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.strainList}
-          contentContainerStyle={styles.strainListContent}
-          snapToInterval={cardWidth + 12} // Snap to each card + margin
-          decelerationRate="fast"
-          // Show a bit of the next card to indicate scrollability
-          contentInset={{ right: 40 }}
-          contentOffset={{ x: 0, y: 0 }}
-          nestedScrollEnabled={true}
-        />
-        {/* Add a fade effect on the right edge to indicate more content */}
-        <View style={styles.fadeEffect} />
-      </View>
-      
-      <Text style={styles.sectionTitle}>Recent Reviews</Text>
-      {mockReviews.map((item) => (
-        <React.Fragment key={item.id}>
-          {renderReviewCard({ item })}
-        </React.Fragment>
-      ))}
-    </ScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#121212" />
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Header Section - Visually heavy element at the top */}
+        <View style={styles.headerContainer}>
+          <Text style={styles.headerTitle}>Highmark</Text>
+          <Text style={styles.headerSubtitle}>Discover and track your cannabis journey</Text>
+        </View>
+        
+        {/* Search Section */}
+        <View style={styles.searchSection}>
+          <SearchBar 
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmit={handleSearch}
+          />
+        </View>
+        
+        {/* Featured Strains Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Featured Strains</Text>
+          <View style={styles.strainListContainer}>
+            <FlatList
+              data={mockStrains}
+              renderItem={renderStrainCard}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.strainList}
+              contentContainerStyle={styles.strainListContent}
+              snapToInterval={cardWidth + 12} // Snap to each card + margin
+              decelerationRate="fast"
+              // Show a bit of the next card to indicate scrollability
+              contentInset={{ right: 40 }}
+              contentOffset={{ x: 0, y: 0 }}
+              nestedScrollEnabled={true}
+            />
+            {/* Add a fade effect on the right edge to indicate more content */}
+            <View style={styles.fadeEffect} />
+          </View>
+        </View>
+        
+        {/* Recent Reviews Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Recent Reviews</Text>
+          {mockReviews.map((item) => (
+            <React.Fragment key={item.id}>
+              {renderReviewCard({ item })}
+            </React.Fragment>
+          ))}
+        </View>
+        
+        {/* Bottom padding to ensure content doesn't get cut off */}
+        <View style={styles.bottomPadding} />
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
   container: {
     flex: 1,
     backgroundColor: '#121212', // Changed from pure black to a softer dark color
     padding: 16,
   },
+  headerContainer: {
+    marginTop: 12,
+    marginBottom: 24,
+    paddingHorizontal: 4,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerTitle: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  searchSection: {
+    marginBottom: 24,
+  },
+  sectionContainer: {
+    marginBottom: 32,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
+  },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 16,
     color: '#FFFFFF',
   },
   strainListContainer: {
     position: 'relative',
-    marginBottom: 24,
   },
   strainList: {
     overflow: 'visible',
@@ -244,93 +297,101 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 5,
   },
+  bottomPadding: {
+    height: 24,
+  },
   strainCard: {
     marginRight: 12,
-    borderRadius: 12,
-    backgroundColor: '#1E1E1E', // Darker card background to match theme
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 }, // Increased shadow offset
-    shadowOpacity: 0.5, // Increased shadow opacity
-    shadowRadius: 10, // Increased shadow radius
-    elevation: 8, // Increased elevation for Android
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)', // Slightly more visible border
-    height: 280,
-    overflow: 'visible', // Ensure shadow is visible
-  },
-  strainImage: {
-    width: '100%',
-    height: 140,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)', // Adding a subtle border to make photo boundaries clearer
-  },
-  strainInfo: {
-    padding: 12,
-  },
-  strainNameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  favoriteButton: {
-    padding: 4,
-  },
-  strainName: {
-    fontSize: 20, // Increased from 18
-    fontWeight: '700', // Increased from 600
-    color: '#FFFFFF', // Changed to white for better contrast
-    flex: 1,
-  },
-  strainType: {
-    fontSize: 14,
-    color: '#A0A0A0', // Lighter gray for secondary text
-    marginTop: 4,
-  },
-  percentages: {
-    flexDirection: 'row',
-    marginTop: 8,
-    gap: 8,
-  },
-  thc: {
-    fontSize: 12,
-    color: '#10b981', // Matching the tab bar active color
-    backgroundColor: 'rgba(16, 185, 129, 0.15)', // Semi-transparent background
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  cbd: {
-    fontSize: 12,
-    color: '#A78BFA', // Changed from #7C3AED to a lighter purple (#A78BFA)
-    backgroundColor: 'rgba(167, 139, 250, 0.15)', // Updated semi-transparent background to match new color
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  reviewList: {
-    flex: 1,
-  },
-  reviewCard: {
-    backgroundColor: '#1E1E1E', // Darker card background to match theme
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 16,
+    backgroundColor: '#1E1E1E',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)', // Light gray border for contrast
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  strainImage: {
+    width: '100%',
+    height: 160,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  strainInfo: {
+    padding: 16,
+  },
+  strainNameContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  strainName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    flex: 1,
+  },
+  favoriteButton: {
+    padding: 4,
+  },
+  strainType: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 8,
+  },
+  percentages: {
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  thc: {
+    fontSize: 14,
+    color: '#10B981',
+    marginRight: 12,
+    fontWeight: '600',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  cbd: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '600',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  reviewList: {
+    flex: 1,
+  },
+  reviewCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   reviewHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
-    justifyContent: 'space-between',
   },
   userContainer: {
     flexDirection: 'row',
@@ -341,62 +402,61 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-  },
-  reviewHeaderText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF', // Changed to white for better contrast
-  },
-  strainReviewed: {
-    fontSize: 14,
-    color: '#A0A0A0', // Lighter gray for secondary text
-  },
-  rating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 184, 0, 0.15)', // Semi-transparent background
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  ratingText: {
-    marginLeft: 4,
-    color: '#FFB800',
-    fontWeight: '600',
-  },
-  reviewText: {
-    fontSize: 14,
-    color: '#E0E0E0', // Light gray for better readability
-    lineHeight: 20,
+    marginRight: 12,
   },
   initialsAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
+    marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   initialsText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  reviewHeaderText: {
+    flex: 1,
+  },
+  username: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  strainReviewed: {
+    fontSize: 14,
+    color: '#9CA3AF',
+  },
+  rating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 184, 0, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 184, 0, 0.3)',
+  },
+  ratingText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFB800',
+    marginLeft: 4,
+  },
+  reviewText: {
+    fontSize: 15,
+    color: '#E5E7EB',
+    lineHeight: 22,
   },
   readMoreButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 8,
   },
   readMoreText: {
-    color: '#10B981',
-    fontSize: 12,
+    fontSize: 14,
+    color: '#3B82F6',
     fontWeight: '600',
   },
 }); 
