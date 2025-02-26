@@ -27,7 +27,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export const ListsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
-  const [activeTab, setActiveTab] = useState<'lists' | 'try'>('lists');
+  const [activeTab, setActiveTab] = useState<'lists' | 'try' | 'favorites'>('lists');
   const [searchQuery, setSearchQuery] = useState('');
   
   // In a real app, you would get the current user ID from authentication
@@ -43,6 +43,12 @@ export const ListsScreen = () => {
   // For now, we'll just use the first few strains as an example
   const tryLaterStrains = useMemo(() => {
     return mockStrains.slice(0, 3);
+  }, []);
+  
+  // Get favorite strains
+  // For this example, we'll use a different set of strains
+  const favoriteStrains = useMemo(() => {
+    return mockStrains.slice(3, 7);
   }, []);
   
   // Filter lists based on search query
@@ -66,6 +72,17 @@ export const ListsScreen = () => {
       strain.type.toLowerCase().includes(query)
     );
   }, [tryLaterStrains, searchQuery]);
+  
+  // Filter favorites based on search query
+  const filteredFavoriteStrains = useMemo(() => {
+    if (!searchQuery.trim()) return favoriteStrains;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return favoriteStrains.filter(strain => 
+      strain.name.toLowerCase().includes(query) || 
+      strain.type.toLowerCase().includes(query)
+    );
+  }, [favoriteStrains, searchQuery]);
   
   const handleSearch = () => {
     console.log('Searching for:', searchQuery);
@@ -160,6 +177,16 @@ export const ListsScreen = () => {
     </View>
   );
   
+  const renderEmptyFavorites = () => (
+    <View style={styles.emptyContainer}>
+      <MaterialCommunityIcons name="heart" size={64} color="#9CA3AF" />
+      <Text style={styles.emptyTitle}>No Favorite Strains</Text>
+      <Text style={styles.emptyText}>
+        Mark strains as favorites to quickly access them here
+      </Text>
+    </View>
+  );
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
@@ -193,6 +220,22 @@ export const ListsScreen = () => {
           <TouchableOpacity 
             style={[
               styles.tab, 
+              activeTab === 'favorites' && styles.activeTab
+            ]}
+            onPress={() => setActiveTab('favorites')}
+          >
+            <Text 
+              style={[
+                styles.tabText, 
+                activeTab === 'favorites' && styles.activeTabText
+              ]}
+            >
+              Favorites
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[
+              styles.tab, 
               activeTab === 'try' && styles.activeTab
             ]}
             onPress={() => setActiveTab('try')}
@@ -214,7 +257,13 @@ export const ListsScreen = () => {
             value={searchQuery}
             onChangeText={setSearchQuery}
             onSubmit={handleSearch}
-            placeholder={activeTab === 'lists' ? "Search your lists..." : "Search strains to try..."}
+            placeholder={
+              activeTab === 'lists' 
+                ? "Search your lists..." 
+                : activeTab === 'favorites'
+                  ? "Search your favorites..."
+                  : "Search strains to try..."
+            }
           />
         </View>
         
@@ -238,6 +287,22 @@ export const ListsScreen = () => {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.listContent}
               ListEmptyComponent={renderEmptyLists}
+              showsVerticalScrollIndicator={false}
+            />
+          </>
+        ) : activeTab === 'favorites' ? (
+          <>
+            {/* Favorites Tab Content */}
+            <Text style={styles.listCount}>
+              {filteredFavoriteStrains.length} {filteredFavoriteStrains.length === 1 ? 'Favorite' : 'Favorites'}
+            </Text>
+            
+            <FlatList
+              data={filteredFavoriteStrains}
+              renderItem={renderStrainItem}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={renderEmptyFavorites}
               showsVerticalScrollIndicator={false}
             />
           </>

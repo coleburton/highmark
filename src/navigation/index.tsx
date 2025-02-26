@@ -11,6 +11,7 @@ import UserProfileScreen from '../screens/UserProfileScreen';
 import UserReviewsScreen from '../screens/UserReviewsScreen';
 import UserFavoritesScreen from '../screens/UserFavoritesScreen';
 import { ListsScreen } from '../screens/ListsScreen';
+import ExploreScreen from '../screens/ExploreScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -33,7 +34,7 @@ export type RootStackParamList = {
 // Define the type for the bottom tab navigator
 export type TabStackParamList = {
   Home: undefined;
-  Diary: undefined;
+  Explore: undefined;
   Add: undefined;
   Lists: undefined;
   Profile: undefined;
@@ -48,13 +49,6 @@ const Tab = createBottomTabNavigator<TabStackParamList>();
 //     <Text style={{ color: '#fff', fontSize: 18 }}>Lists Coming Soon</Text>
 //   </View>
 // );
-
-// Placeholder screen for Diary
-const DiaryScreen = () => (
-  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
-    <Text style={{ color: '#fff', fontSize: 18 }}>Diary Coming Soon</Text>
-  </View>
-);
 
 // Placeholder screen for ListDetail
 const ListDetailScreen = ({ route }: { route: RouteProp<RootStackParamList, 'ListDetail'> }) => {
@@ -101,17 +95,17 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Diary"
-        component={DiaryScreen}
+        name="Explore"
+        component={ExploreScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Feather name="book-open" size={size} color={color} />
+            <Feather name="compass" size={size} color={color} />
           ),
         }}
       />
       <Tab.Screen
         name="Add"
-        component={DiaryScreen} // Placeholder component, will be overridden by the button
+        component={ExploreScreen} // Placeholder component, will be overridden by the button
         options={{
           tabBarButton: (props) => (
             <TouchableOpacity
