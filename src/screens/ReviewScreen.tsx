@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { mockReviews, mockStrains, mockUsers } from '../data/mockData';
+import { mockStrains, mockUsers } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getStrainImage } from '../utils/imageUtils';
+import { getReviewById } from '../services/supabaseService';
+import { ExtendedReview } from '../services/supabaseService';
 
 type RootStackParamList = {
   Home: undefined;
@@ -16,26 +18,29 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Review'>;
 
 export const ReviewScreen = ({ route, navigation }: Props) => {
   const { reviewId } = route.params;
-  const review = mockReviews.find((r) => r.id === reviewId);
-  
-  if (!review) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Review not found</Text>
-      </View>
-    );
-  }
+  const [review, setReview] = useState<ExtendedReview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const strain = mockStrains.find((s) => s.id === review.strain_id);
-  const user = mockUsers.find(u => u.id === review.user_id);
+  useEffect(() => {
+    const fetchReview = async () => {
+      try {
+        setLoading(true);
+        const reviewData = await getReviewById(reviewId);
+        setReview(reviewData);
+        if (!reviewData) {
+          setError(true);
+        }
+      } catch (err) {
+        console.error('Error fetching review:', err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>User not found</Text>
-      </View>
-    );
-  }
+    fetchReview();
+  }, [reviewId]);
 
   const renderStars = (rating: number) => (
     <View style={styles.starsContainer}>
@@ -49,6 +54,33 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
       ))}
     </View>
   );
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#10B981" />
+      </View>
+    );
+  }
+
+  if (error || !review) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>Review not found</Text>
+      </View>
+    );
+  }
+
+  const strain = review.strains;
+  const user = review.user || review.profiles;
+
+  if (!user) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>User not found</Text>
+      </View>
+    );
+  }
 
   const navigateToUserProfile = () => {
     navigation.navigate('UserProfile', { userId: review.user_id });
@@ -64,7 +96,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
             onPress={navigateToUserProfile}
           >
             <Image 
-              source={{ uri: user.avatar_url }} 
+              source={{ uri: user.avatar_url || 'https://via.placeholder.com/50' }} 
               style={styles.userAvatar}
             />
             <View style={styles.userDetails}>
@@ -99,7 +131,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Effects Experienced</Text>
           <View style={styles.tags}>
-            {review.effects.map((effect, index) => (
+            {review.effects && review.effects.map((effect, index) => (
               <View key={index} style={styles.tag}>
                 <Text style={styles.tagText}>{effect}</Text>
               </View>
@@ -111,7 +143,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Flavors Noted</Text>
           <View style={styles.tags}>
-            {review.flavors.map((flavor, index) => (
+            {review.flavors && review.flavors.map((flavor, index) => (
               <View key={index} style={styles.flavorTag}>
                 <Text style={styles.flavorTagText}>{flavor}</Text>
               </View>
@@ -127,7 +159,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
               onPress={() => strain && navigation.navigate('Strain', { strainId: strain.id })}
             >
               <Image 
-                source={strain ? getStrainImage(strain.id) : { uri: 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain' }} 
+                source={strain ? (strain.image_url ? { uri: strain.image_url } : getStrainImage(strain.id)) : { uri: 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain' }} 
                 style={styles.photo}
                 resizeMode="cover"
               />
@@ -171,6 +203,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#000000',
+  },
+  centerContent: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,

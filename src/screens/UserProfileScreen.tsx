@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { mockUsers, mockReviews, mockStrains, mockFavorites, mockFollows, mockLists, mockListFollowers } from '../data/mockData';
 import { getStrainImage } from '../utils/imageUtils';
+import { getUserById, getUserReviews } from '../services/supabaseService';
 
 type UserProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
 type UserProfileNavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -53,15 +54,21 @@ interface PublicList {
 
 export default function UserProfileScreen({ route }: UserProfileScreenProps) {
   const { userId } = route.params;
+  const navigation = useNavigation<UserProfileNavigationProp>();
+  
   const [user, setUser] = useState<User | null>(null);
   const [reviews, setReviews] = useState<ExtendedReview[]>([]);
   const [favorites, setFavorites] = useState<FavoriteStrain[]>([]);
-  const [publicLists, setPublicLists] = useState<PublicList[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [lists, setLists] = useState<PublicList[]>([]);
   const [isFollowing, setIsFollowing] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [loadingFavorites, setLoadingFavorites] = useState(true);
+  const [loadingLists, setLoadingLists] = useState(true);
   const [expandedReviews, setExpandedReviews] = useState<string[]>([]);
-  const navigation = useNavigation<UserProfileNavigationProp>();
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -87,75 +94,62 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
     try {
       setLoading(true);
       
-      // Use mock data instead of Supabase
-      const user = mockUsers.find(u => u.id === userId);
+      // Use our new getUserById function
+      const userData = await getUserById(userId);
       
-      if (user) {
-        setUser(user);
+      if (userData) {
+        setUser(userData);
       } else {
-        console.error('User not found in mock data');
+        // Fallback to mock data if no user found in Supabase
+        const mockUser = mockUsers.find(u => u.id === userId);
+        if (mockUser) {
+          setUser(mockUser);
+        } else {
+          console.error('User not found in mock data');
+          Alert.alert('Error', 'User not found');
+        }
       }
-      
-      // In a real app with Supabase:
-      // const { data, error } = await supabase
-      //   .from('users')
-      //   .select('*')
-      //   .eq('id', userId)
-      //   .single();
-      //   
-      // if (error) throw error;
-      // setUser(data);
-      
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      Alert.alert('Error', 'Failed to load user profile');
+    } finally {
       setLoading(false);
     }
   }
 
   async function fetchUserReviews() {
     try {
-      // Use mock data instead of Supabase
-      const userReviews = mockReviews
-        .filter(review => review.user_id === userId)
-        .map(review => {
-          // Find the corresponding strain
-          const strain = mockStrains.find(s => s.id === review.strain_id);
-          // Return the review with the strain data in the expected format
-          return {
-            ...review,
-            strains: strain ? {
-              id: strain.id,
-              name: strain.name,
-              type: strain.type,
-              image_url: strain.image_url
-            } : null
-          } as ExtendedReview;
-        })
-        .slice(0, 3); // Get only the first 3 reviews
+      setLoadingReviews(true);
       
-      setReviews(userReviews);
+      // Use our new getUserReviews function
+      const reviewsData = await getUserReviews(userId, 3); // Get only 3 reviews for the profile page
       
-      // In a real app with Supabase:
-      // const { data, error } = await supabase
-      //   .from('reviews')
-      //   .select(`
-      //     *,
-      //     strains (
-      //       id,
-      //       name,
-      //       type,
-      //       image_url
-      //     )
-      //   `)
-      //   .eq('user_id', userId)
-      //   .order('created_at', { ascending: false })
-      //   .limit(3);
-      //   
-      // if (error) throw error;
-      // setReviews(data || []);
+      if (reviewsData && reviewsData.length > 0) {
+        setReviews(reviewsData);
+      } else {
+        // Fallback to mock data if no reviews found in Supabase
+        const mockUserReviews = mockReviews
+          .filter(review => review.user_id === userId)
+          .map(review => {
+            const strain = mockStrains.find(s => s.id === review.strain_id);
+            return {
+              ...review,
+              strains: strain ? {
+                id: strain.id,
+                name: strain.name,
+                type: strain.type,
+                image_url: strain.image_url
+              } : undefined
+            } as ExtendedReview;
+          })
+          .slice(0, 3); // Get only the first 3 reviews
+        
+        setReviews(mockUserReviews);
+      }
     } catch (error) {
-      console.error('Error fetching reviews:', error);
+      console.error('Error fetching user reviews:', error);
+    } finally {
+      setLoadingReviews(false);
     }
   }
 
@@ -221,7 +215,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
         })
         .slice(0, 3); // Get only the first 3 lists
       
-      setPublicLists(userPublicLists);
+      setLists(userPublicLists);
       
       // In a real app with Supabase:
       // const { data, error } = await supabase
@@ -250,7 +244,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
       //       followerCount: followerCount || 0
       //     };
       //   }));
-      //   setPublicLists(listsWithCounts);
+      //   setLists(listsWithCounts);
       // }
     } catch (error) {
       console.error('Error fetching public lists:', error);
@@ -535,12 +529,12 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
           <Text style={styles.statLabel}>Favorites</Text>
         </TouchableOpacity>
         
-        {publicLists.length > 0 && (
+        {lists.length > 0 && (
           <TouchableOpacity 
             style={styles.statItem}
             onPress={() => navigation.navigate('UserLists', { userId })}
           >
-            <Text style={styles.statNumber}>{publicLists.length}</Text>
+            <Text style={styles.statNumber}>{lists.length}</Text>
             <Text style={styles.statLabel}>Lists</Text>
           </TouchableOpacity>
         )}
@@ -569,7 +563,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
       </View>
 
       {/* Public Lists Section - Only show if user has public lists */}
-      {publicLists.length > 0 && (
+      {lists.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Lists</Text>
@@ -579,7 +573,7 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
           </View>
           
           <FlatList
-            data={publicLists}
+            data={lists}
             renderItem={renderListItem}
             keyExtractor={(item) => item.id}
             horizontal

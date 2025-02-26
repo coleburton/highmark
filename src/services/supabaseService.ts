@@ -10,6 +10,11 @@ export interface ExtendedReview extends Review {
     image_url?: string;
   };
   user?: User;
+  profiles?: {
+    id: string;
+    username: string;
+    avatar_url?: string;
+  };
 }
 
 /**
@@ -201,6 +206,133 @@ export const getUserFavoriteStrains = async (): Promise<string[]> => {
     return data?.map(item => item.strain_id) || [];
   } catch (error) {
     console.error('Error in getUserFavoriteStrains:', error);
+    return [];
+  }
+};
+
+/**
+ * Get a single review by ID
+ * @param reviewId The ID of the review to fetch
+ * @returns Promise with the review data or null if not found
+ */
+export const getReviewById = async (reviewId: string): Promise<ExtendedReview | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        strains:strain_id (
+          id,
+          name,
+          type,
+          image_url
+        ),
+        profiles:user_id (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq('id', reviewId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching review by ID:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log(`No review found with ID: ${reviewId}`);
+      return null;
+    }
+
+    // Transform the data to match the expected format
+    const transformedData = {
+      ...data,
+      user: data.profiles,
+      profiles: undefined // Remove the profiles property
+    };
+
+    return transformedData as unknown as ExtendedReview;
+  } catch (error) {
+    console.error('Error in getReviewById:', error);
+    return null;
+  }
+};
+
+/**
+ * Get user profile by ID
+ * @param userId The ID of the user to fetch
+ * @returns Promise with the user data or null if not found
+ */
+export const getUserById = async (userId: string): Promise<User | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user by ID:', error);
+      return null;
+    }
+
+    if (!data) {
+      console.log(`No user found with ID: ${userId}`);
+      return null;
+    }
+
+    return data as User;
+  } catch (error) {
+    console.error('Error in getUserById:', error);
+    return null;
+  }
+};
+
+/**
+ * Get user reviews by user ID
+ * @param userId The ID of the user to fetch reviews for
+ * @param limit Number of reviews to fetch
+ * @returns Promise with array of extended reviews
+ */
+export const getUserReviews = async (userId: string, limit = 10): Promise<ExtendedReview[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        *,
+        strains:strain_id (
+          id,
+          name,
+          type,
+          image_url
+        ),
+        profiles:user_id (
+          id,
+          username,
+          avatar_url
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching user reviews:', error);
+      return [];
+    }
+
+    // Transform the data to match the expected format
+    const transformedData = data?.map(item => ({
+      ...item,
+      user: item.profiles,
+      profiles: undefined // Remove the profiles property
+    })) || [];
+
+    return transformedData as unknown as ExtendedReview[];
+  } catch (error) {
+    console.error('Error in getUserReviews:', error);
     return [];
   }
 }; 
