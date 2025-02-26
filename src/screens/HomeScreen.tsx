@@ -61,29 +61,28 @@ export const HomeScreen = () => {
         style={styles.strainImage} 
         resizeMode="cover"
       />
-      <View style={styles.strainInfo}>
-        <View style={styles.strainNameContainer}>
-          <Text style={styles.strainName}>{item.name}</Text>
-          <TouchableOpacity 
-            style={styles.favoriteButton} 
-            onPress={(e) => {
-              e.stopPropagation();
-              toggleFavorite(item.id);
-            }}
-          >
-            <MaterialCommunityIcons 
-              name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
-              size={24} 
-              color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
-            />
-          </TouchableOpacity>
-        </View>
-        <Text style={styles.strainType}>{item.type}</Text>
-        <View style={styles.percentages}>
-          <Text style={styles.thc}>THC: {item.THC_percentage}%</Text>
-          <Text style={styles.cbd}>CBD: {item.CBD_percentage}%</Text>
+      <View style={styles.strainOverlay}>
+        <Text style={styles.strainName}>{item.name}</Text>
+        <View style={styles.strainMeta}>
+          <Text style={styles.strainType}>{item.type}</Text>
+          <View style={styles.thcBadge}>
+            <Text style={styles.thcText}>THC: {item.THC_percentage}%</Text>
+          </View>
         </View>
       </View>
+      <TouchableOpacity 
+        style={styles.favoriteButton} 
+        onPress={(e) => {
+          e.stopPropagation();
+          toggleFavorite(item.id);
+        }}
+      >
+        <MaterialCommunityIcons 
+          name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
+          size={24} 
+          color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
+        />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -312,47 +311,38 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
+    height: 240, // Add fixed height to match explore page
   },
   strainImage: {
     width: '100%',
-    height: 160,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    height: '100%', // Make image take full height
   },
-  strainInfo: {
+  strainOverlay: {
+    position: 'absolute',
+    bottom: 0, // Position at bottom
+    left: 0,
+    right: 0,
     padding: 16,
-  },
-  strainNameContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Add semi-transparent background
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   strainName: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    flex: 1,
+    marginBottom: 4,
   },
-  favoriteButton: {
-    padding: 4,
+  strainMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   strainType: {
     fontSize: 14,
     color: '#9CA3AF',
-    marginBottom: 8,
   },
-  percentages: {
-    flexDirection: 'row',
-    marginTop: 4,
-  },
-  thc: {
-    fontSize: 14,
-    color: '#10B981',
-    marginRight: 12,
-    fontWeight: '600',
+  thcBadge: {
     backgroundColor: 'rgba(16, 185, 129, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -360,16 +350,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.3)',
   },
-  cbd: {
-    fontSize: 14,
-    color: '#3B82F6',
+  thcText: {
+    fontSize: 12,
+    color: '#10B981',
     fontWeight: '600',
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+  },
+  favoriteButton: {
+    position: 'absolute', // Position the favorite button
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Add semi-transparent background
+    borderRadius: 20,
+    padding: 8,
   },
   reviewList: {
     flex: 1,
