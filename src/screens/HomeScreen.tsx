@@ -24,6 +24,8 @@ export const HomeScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
   // Add state for favorite strains
   const [favoriteStrains, setFavoriteStrains] = useState<string[]>([]);
+  // Add state for expanded reviews
+  const [expandedReviews, setExpandedReviews] = useState<string[]>([]);
 
   // Toggle favorite status for a strain
   const toggleFavorite = (strainId: string) => {
@@ -31,6 +33,15 @@ export const HomeScreen = () => {
       prev.includes(strainId) 
         ? prev.filter(id => id !== strainId) 
         : [...prev, strainId]
+    );
+  };
+
+  // Toggle expanded status for a review
+  const toggleExpandedReview = (reviewId: string) => {
+    setExpandedReviews(prev => 
+      prev.includes(reviewId) 
+        ? prev.filter(id => id !== reviewId) 
+        : [...prev, reviewId]
     );
   };
 
@@ -77,8 +88,8 @@ export const HomeScreen = () => {
   );
 
   const renderReviewCard = ({ item }: { item: Review & { strains: { name: string; type: string } } } ) => {
-    // State to track if the review is expanded
-    const [expanded, setExpanded] = React.useState(false);
+    // Check if the review is expanded using the expandedReviews state
+    const isExpanded = expandedReviews.includes(item.id);
     
     // Check if the review text is long enough to need expansion
     const isLongReview = item.review_text.length > 80;
@@ -118,7 +129,7 @@ export const HomeScreen = () => {
         <TouchableOpacity onPress={() => navigation.navigate('Review', { reviewId: item.id })}>
           <Text 
             style={styles.reviewText} 
-            numberOfLines={expanded ? undefined : 2}
+            numberOfLines={isExpanded ? undefined : 2}
           >
             {item.review_text}
           </Text>
@@ -126,12 +137,12 @@ export const HomeScreen = () => {
             <TouchableOpacity 
               onPress={(e) => {
                 e.stopPropagation();
-                setExpanded(!expanded);
+                toggleExpandedReview(item.id);
               }} 
               style={styles.readMoreButton}
             >
               <Text style={styles.readMoreText}>
-                {expanded ? 'Show Less' : 'Read More'}
+                {isExpanded ? 'Show Less' : 'Read More'}
               </Text>
             </TouchableOpacity>
           )}
