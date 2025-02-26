@@ -9,6 +9,10 @@ const strainImages: Record<string, string> = {
   'strain-1': 'blue_dream_1.jpg',
   'strain-2': 'og_kush_1.jpg',
   'strain-3': 'sour_diesel_1.jpg',
+  'strain-4': 'northern_lights_1.jpg',
+  'strain-5': 'jack_herer_1.jpg',
+  'strain-6': 'pineapple_express_1.jpg',
+  'strain-7': 'gsc_1.jpg',
 };
 
 // Default image to use if a strain image is not found - keeping this as a fallback
@@ -29,6 +33,10 @@ export const getStrainImage = (strainId: string): ImageSourcePropType => {
       'strain-1': require('../../assets/images/strains/s1/blue_dream_1.jpg'),
       'strain-2': require('../../assets/images/strains/s2/og_kush_1.jpg'),
       'strain-3': require('../../assets/images/strains/s3/sour_diesel_1.jpg'),
+      'strain-4': require('../../assets/images/placeholder.png'),
+      'strain-5': require('../../assets/images/placeholder.png'),
+      'strain-6': require('../../assets/images/placeholder.png'),
+      'strain-7': require('../../assets/images/placeholder.png'),
     };
 
     // Try to return the image source for the strain ID, or the local placeholder if not found
@@ -46,10 +54,7 @@ export const getStrainImage = (strainId: string): ImageSourcePropType => {
  * @returns Array of image objects for the strain
  */
 export function getAllStrainImages(strainId: string): any[] {
-  if (!strainImages[strainId]) {
-    return [DEFAULT_STRAIN_IMAGE];
-  }
-  
+  // Always return at least one image (either the strain image or the default)
   return [getStrainImage(strainId)];
 }
 

@@ -1,11 +1,14 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, FlatList } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, FlatList, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { mockStrains, mockReviews, mockUsers, mockLists } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { getAllStrainImages, hasMultipleImages, getStrainImage } from '../utils/imageUtils';
 import { ListModal } from '../components/ListModal';
-import { List } from '../types';
+import { List, Strain, Review } from '../types';
+import { supabase } from '../lib/supabase';
+// Import shared cache from HomeScreen
+import { strainCache, reviewCache } from '../screens/HomeScreen';
 
 type RootStackParamList = {
   Home: undefined;
@@ -22,13 +25,110 @@ type RatingCounts = {
 
 export const StrainScreen = ({ route, navigation }: Props) => {
   const { strainId } = route.params;
-  const strain = mockStrains.find((s) => s.id === strainId);
-  const strainReviews = mockReviews.filter((r) => r.strain_id === strainId);
+  const [loading, setLoading] = useState(true);
+  const [strain, setStrain] = useState<Strain | undefined>(strainCache.get(strainId));
+  const [strainReviews, setStrainReviews] = useState<Review[]>(reviewCache.get(strainId) || []);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [listModalVisible, setListModalVisible] = useState(false);
   
   // In a real app, this would come from the authenticated user
   const currentUserId = 'u1';
+  
+  // Fetch data function - now optimized with caching
+  const fetchData = useCallback(async () => {
+    // If we already have the strain in cache and it's set in state, skip loading
+    if (strainCache.has(strainId) && strain) {
+      // Just fetch reviews if needed
+      if (!reviewCache.has(strainId)) {
+        await fetchReviews();
+      }
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // First try to get the strain from Supabase
+      const { data: supabaseStrain, error } = await supabase
+        .from('strains')
+        .select('*')
+        .eq('id', strainId)
+        .single();
+      
+      if (supabaseStrain) {
+        console.log(`Found strain in Supabase: ${supabaseStrain.name}`);
+        const typedStrain = supabaseStrain as Strain;
+        setStrain(typedStrain);
+        strainCache.set(strainId, typedStrain);
+        
+        // Get strain reviews from Supabase
+        await fetchReviews();
+      } else {
+        // Fallback to mock data if not found in Supabase
+        console.log(`Strain not found in Supabase, trying mock data...`);
+        const foundStrain = mockStrains.find((s) => s.id === strainId);
+        
+        if (foundStrain) {
+          console.log(`Found strain in mock data: ${foundStrain.name}`);
+          setStrain(foundStrain);
+          strainCache.set(strainId, foundStrain);
+          
+          // Get strain reviews from mock data
+          const reviews = mockReviews.filter((r) => r.strain_id === strainId);
+          setStrainReviews(reviews);
+          reviewCache.set(strainId, reviews);
+        } else {
+          console.warn(`Strain not found with ID: ${strainId}`);
+          console.warn(`Available strain IDs: ${mockStrains.map(s => s.id).join(', ')}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching strain:', error);
+      
+      // Fallback to mock data on error
+      const foundStrain = mockStrains.find((s) => s.id === strainId);
+      if (foundStrain) {
+        setStrain(foundStrain);
+        strainCache.set(strainId, foundStrain);
+        
+        const reviews = mockReviews.filter((r) => r.strain_id === strainId);
+        setStrainReviews(reviews);
+        reviewCache.set(strainId, reviews);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [strainId, strain]);
+  
+  // Separate function to fetch reviews
+  const fetchReviews = async () => {
+    try {
+      const { data: supabaseReviews } = await supabase
+        .from('reviews')
+        .select('*')
+        .eq('strain_id', strainId);
+        
+      if (supabaseReviews && supabaseReviews.length > 0) {
+        const typedReviews = supabaseReviews as Review[];
+        setStrainReviews(typedReviews);
+        reviewCache.set(strainId, typedReviews);
+      } else {
+        // Fallback to mock data if no reviews in Supabase
+        const mockStrainReviews = mockReviews.filter((r) => r.strain_id === strainId);
+        setStrainReviews(mockStrainReviews);
+        reviewCache.set(strainId, mockStrainReviews);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      const mockStrainReviews = mockReviews.filter((r) => r.strain_id === strainId);
+      setStrainReviews(mockStrainReviews);
+      reviewCache.set(strainId, mockStrainReviews);
+    }
+  };
+  
+  // Load data on component mount
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
   
   // Get all available images for this strain
   const strainImages = useMemo(() => {
@@ -121,10 +221,86 @@ export const StrainScreen = ({ route, navigation }: Props) => {
     // In a real app, this would update the state or trigger a refetch
   };
 
+  // If loading, show a loading indicator
+  if (loading) {
+    // If we have the strain in cache, show a partial UI with skeleton loaders
+    if (strain) {
+      return (
+        <View style={styles.container}>
+          <ScrollView>
+            <View style={styles.heroSection}>
+              <Image 
+                source={getAllStrainImages(strain.id)[0]} 
+                style={styles.heroImage} 
+                resizeMode="cover"
+              />
+              
+              <View style={styles.heroContent}>
+                <Text style={styles.name}>{strain.name}</Text>
+                <Text style={styles.type}>{strain.type}</Text>
+                
+                {/* Skeleton for action buttons */}
+                <View style={styles.actionButtons}>
+                  {[1, 2, 3].map((_, index) => (
+                    <View key={index} style={[styles.actionButton, styles.skeletonItem]} />
+                  ))}
+                </View>
+              </View>
+            </View>
+            
+            <View style={styles.content}>
+              {/* Skeleton for stats */}
+              <View style={styles.stats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>THC</Text>
+                  <Text style={styles.statValue}>{strain.THC_percentage}%</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>CBD</Text>
+                  <Text style={styles.statValue}>{strain.CBD_percentage}%</Text>
+                </View>
+              </View>
+              
+              {/* Skeleton for content sections */}
+              {[1, 2, 3].map((_, index) => (
+                <View key={index} style={styles.section}>
+                  <View style={[styles.skeletonItem, { width: '40%', height: 24, marginBottom: 16 }]} />
+                  <View style={[styles.skeletonItem, { width: '100%', height: 100 }]} />
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </View>
+      );
+    }
+    
+    // Otherwise show the full loading screen
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#10B981" />
+        <Text style={styles.loadingText}>Loading strain details...</Text>
+      </View>
+    );
+  }
+
+  // If strain not found, show the not found screen
   if (!strain) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>Strain not found</Text>
+        <View style={styles.notFoundContainer}>
+          <MaterialCommunityIcons name="cannabis" size={64} color="#10B981" style={styles.notFoundIcon} />
+          <Text style={styles.notFoundTitle}>Strain not found</Text>
+          <Text style={styles.notFoundText}>
+            The strain you're looking for doesn't exist or may have been removed.
+          </Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -279,7 +455,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Effects</Text>
             <View style={styles.tags}>
-              {strain.effects.map((effect, index) => (
+              {strain.effects.map((effect: string, index: number) => (
                 <View key={index} style={styles.tag}>
                   <Text style={styles.tagText}>{effect}</Text>
                 </View>
@@ -290,7 +466,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Flavors</Text>
             <View style={styles.tags}>
-              {strain.flavors.map((flavor, index) => (
+              {strain.flavors.map((flavor: string, index: number) => (
                 <View key={index} style={styles.flavorTag}>
                   <Text style={styles.flavorTagText}>{flavor}</Text>
                 </View>
@@ -387,6 +563,59 @@ export const StrainScreen = ({ route, navigation }: Props) => {
               </View>
             ))}
           </View>
+
+          {/* Related Strains Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Related Strains</Text>
+            <FlatList
+              horizontal
+              data={mockStrains
+                .filter(s => s.id !== strain.id && s.type === strain.type)
+                .slice(0, 5)}
+              keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
+              renderItem={({ item }) => {
+                // Prefetch related strain data
+                if (!strainCache.has(item.id)) {
+                  // We don't await this - it's a background prefetch
+                  (async () => {
+                    try {
+                      const { data } = await supabase
+                        .from('strains')
+                        .select('*')
+                        .eq('id', item.id)
+                        .single();
+                        
+                      if (data) strainCache.set(item.id, data as Strain);
+                    } catch (error) {
+                      console.log('Error prefetching related strain:', error);
+                    }
+                  })();
+                }
+                
+                return (
+                  <TouchableOpacity 
+                    style={styles.relatedStrainCard}
+                    onPress={() => {
+                      // Navigate to the strain without resetting the screen
+                      navigation.push('Strain', { strainId: item.id });
+                    }}
+                  >
+                    <Image 
+                      source={getStrainImage(item.id)} 
+                      style={styles.relatedStrainImage} 
+                      resizeMode="cover"
+                    />
+                    <View style={styles.relatedStrainContent}>
+                      <Text style={styles.relatedStrainName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={styles.relatedStrainType}>{item.type}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }}
+              contentContainerStyle={styles.relatedStrainsContainer}
+            />
+          </View>
         </View>
       </ScrollView>
 
@@ -409,11 +638,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000000',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  loadingText: {
+    color: '#ffffff',
+    fontSize: 16,
+    marginTop: 16,
+  },
   errorText: {
     color: '#ffffff',
     fontSize: 16,
     textAlign: 'center',
     marginTop: 20,
+  },
+  notFoundContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  notFoundIcon: {
+    marginBottom: 24,
+    opacity: 0.7,
+  },
+  notFoundTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  notFoundText: {
+    color: '#9CA3AF',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 24,
+  },
+  backButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   heroSection: {
     height: Dimensions.get('window').height * 0.5,
@@ -780,5 +1055,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 12,
     textAlign: 'center',
+  },
+  relatedStrainsContainer: {
+    paddingVertical: 8,
+    gap: 12,
+  },
+  relatedStrainCard: {
+    width: 160,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#18181B',
+    borderWidth: 1,
+    borderColor: '#27272A',
+    marginRight: 12,
+  },
+  relatedStrainImage: {
+    width: '100%',
+    height: 120,
+    opacity: 0.8,
+  },
+  relatedStrainContent: {
+    padding: 12,
+  },
+  relatedStrainName: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  relatedStrainType: {
+    color: '#10B981',
+    fontSize: 14,
+  },
+  skeletonItem: {
+    backgroundColor: '#27272A',
+    borderRadius: 8,
+    overflow: 'hidden',
+    opacity: 0.7,
   },
 }); 

@@ -1,12 +1,22 @@
-import React, { useState } from 'react';
-import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, StatusBar, SafeAreaView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, StatusBar, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { mockStrains, mockReviews, mockUsers } from '../data/mockData';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Strain, Review } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getStrainImage } from '../utils/imageUtils';
 import { SearchBar } from '../components/SearchBar';
+import { getFeaturedStrains, getRecentReviews, getUserFavoriteStrains, toggleFavoriteStrain, ExtendedReview as BaseExtendedReview } from '../services/supabaseService';
+
+// Fallback to mock data if needed
+import { mockStrains, mockReviews } from '../data/mockData';
+
+// Import the strain cache from StrainScreen or create a shared cache utility
+import { supabase } from '../lib/supabase';
+
+// Create a shared cache that can be used across screens
+export const strainCache = new Map<string, Strain>();
+export const reviewCache = new Map<string, Review[]>();
 
 type RootStackParamList = {
   Home: undefined;
@@ -17,23 +27,120 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// Extend the ExtendedReview interface to include profiles property
+interface ExtendedReview extends BaseExtendedReview {
+  profiles?: {
+    id: string;
+    username: string;
+    avatar_url?: string;
+  };
+}
+
 export const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const screenWidth = Dimensions.get('window').width;
   const cardWidth = screenWidth * 0.65; // Make cards take up 65% of screen width
   const [searchQuery, setSearchQuery] = useState('');
-  // Add state for favorite strains
+  
+  // State for data
+  const [strains, setStrains] = useState<Strain[]>([]);
+  const [reviews, setReviews] = useState<ExtendedReview[]>([]);
   const [favoriteStrains, setFavoriteStrains] = useState<string[]>([]);
-  // Add state for expanded reviews
   const [expandedReviews, setExpandedReviews] = useState<string[]>([]);
+  
+  // Loading states
+  const [loadingStrains, setLoadingStrains] = useState(true);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Function to fetch all data
+  const fetchData = async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchStrains(),
+      fetchReviews(),
+      fetchFavorites()
+    ]);
+    setRefreshing(false);
+  };
+
+  // Fetch strains from Supabase
+  const fetchStrains = async () => {
+    setLoadingStrains(true);
+    try {
+      const data = await getFeaturedStrains();
+      if (data.length > 0) {
+        setStrains(data);
+      } else {
+        // Fallback to mock data if no data from Supabase
+        setStrains(mockStrains);
+      }
+    } catch (error) {
+      console.error('Error fetching strains:', error);
+      setStrains(mockStrains); // Fallback to mock data
+    } finally {
+      setLoadingStrains(false);
+    }
+  };
+
+  // Fetch reviews from Supabase
+  const fetchReviews = async () => {
+    setLoadingReviews(true);
+    try {
+      const data = await getRecentReviews();
+      if (data.length > 0) {
+        setReviews(data);
+      } else {
+        // Fallback to mock data if no data from Supabase
+        setReviews(mockReviews);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+      setReviews(mockReviews); // Fallback to mock data
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  // Fetch user's favorite strains
+  const fetchFavorites = async () => {
+    try {
+      const favoriteStrainIds = await getUserFavoriteStrains();
+      setFavoriteStrains(favoriteStrainIds);
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+    }
+  };
 
   // Toggle favorite status for a strain
-  const toggleFavorite = (strainId: string) => {
-    setFavoriteStrains(prev => 
-      prev.includes(strainId) 
-        ? prev.filter(id => id !== strainId) 
-        : [...prev, strainId]
-    );
+  const handleToggleFavorite = async (strainId: string) => {
+    try {
+      // Optimistically update UI
+      setFavoriteStrains(prev => 
+        prev.includes(strainId) 
+          ? prev.filter(id => id !== strainId) 
+          : [...prev, strainId]
+      );
+      
+      // Update in database
+      const success = await toggleFavoriteStrain(strainId);
+      
+      if (!success) {
+        // Revert if failed
+        setFavoriteStrains(prev => 
+          prev.includes(strainId) 
+            ? prev.filter(id => id !== strainId) 
+            : [...prev, strainId]
+        );
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+    }
   };
 
   // Toggle expanded status for a review
@@ -51,42 +158,86 @@ export const HomeScreen = () => {
     // Here you would implement the actual search functionality with Supabase
   };
 
-  const renderStrainCard = ({ item }: { item: Strain }) => (
-    <TouchableOpacity
-      style={[styles.strainCard, { width: cardWidth }]}
-      onPress={() => navigation.navigate('Strain', { strainId: item.id })}
-    >
-      <Image 
-        source={getStrainImage(item.id)} 
-        style={styles.strainImage} 
-        resizeMode="cover"
-      />
-      <View style={styles.strainOverlay}>
-        <Text style={styles.strainName}>{item.name}</Text>
-        <View style={styles.strainMeta}>
-          <Text style={styles.strainType}>{item.type}</Text>
-          <View style={styles.thcBadge}>
-            <Text style={styles.thcText}>THC: {item.THC_percentage}%</Text>
+  // Prefetch strain data when user hovers or when the component renders
+  const prefetchStrainData = async (strainId: string) => {
+    // Skip if already in cache
+    if (strainCache.has(strainId)) return;
+    
+    try {
+      // Fetch strain data in background
+      const { data: strainData } = await supabase
+        .from('strains')
+        .select('*')
+        .eq('id', strainId)
+        .single();
+        
+      if (strainData) {
+        // Store in cache for quick access when navigating
+        strainCache.set(strainId, strainData as Strain);
+        
+        // Also prefetch reviews in background
+        const { data: reviewsData } = await supabase
+          .from('reviews')
+          .select('*')
+          .eq('strain_id', strainId);
+          
+        if (reviewsData && reviewsData.length > 0) {
+          reviewCache.set(strainId, reviewsData as Review[]);
+        }
+      }
+    } catch (error) {
+      console.log('Error prefetching strain:', error);
+      // Silently fail - this is just optimization
+    }
+  };
+
+  const renderStrainCard = ({ item }: { item: Strain }) => {
+    // Prefetch data when rendering the card
+    prefetchStrainData(item.id);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.strainCard, { width: cardWidth }]}
+        onPress={() => {
+          // Log the strain ID for debugging
+          console.log(`Navigating to strain with ID: ${item.id}`);
+          navigation.navigate('Strain', { strainId: item.id });
+        }}
+        // Prefetch on long press as well
+        onLongPress={() => prefetchStrainData(item.id)}
+      >
+        <Image 
+          source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)} 
+          style={styles.strainImage} 
+          resizeMode="cover"
+        />
+        <View style={styles.strainOverlay}>
+          <Text style={styles.strainName}>{item.name}</Text>
+          <View style={styles.strainMeta}>
+            <Text style={styles.strainType}>{item.type}</Text>
+            <View style={styles.thcBadge}>
+              <Text style={styles.thcText}>THC: {item.THC_percentage}%</Text>
+            </View>
           </View>
         </View>
-      </View>
-      <TouchableOpacity 
-        style={styles.favoriteButton} 
-        onPress={(e) => {
-          e.stopPropagation();
-          toggleFavorite(item.id);
-        }}
-      >
-        <MaterialCommunityIcons 
-          name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
-          size={24} 
-          color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
-        />
+        <TouchableOpacity 
+          style={styles.favoriteButton} 
+          onPress={(e) => {
+            e.stopPropagation();
+            handleToggleFavorite(item.id);
+          }}
+        >
+          <MaterialCommunityIcons 
+            name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
+            size={24} 
+            color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
-  const renderReviewCard = ({ item }: { item: Review & { strains: { name: string; type: string } } } ) => {
+  const renderReviewCard = ({ item }: { item: ExtendedReview }) => {
     // Check if the review is expanded using the expandedReviews state
     const isExpanded = expandedReviews.includes(item.id);
     
@@ -94,7 +245,7 @@ export const HomeScreen = () => {
     const isLongReview = item.review_text.length > 80;
     
     // Get the user data
-    const user = mockUsers.find(user => user.id === item.user_id);
+    const user = item.user || item.profiles;
     
     return (
       <View style={styles.reviewCard}>
@@ -169,10 +320,29 @@ export const HomeScreen = () => {
     return colors[Math.abs(hash) % colors.length];
   };
 
+  // Render loading indicator
+  const renderLoading = () => (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#10B981" />
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.container} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={fetchData}
+            colors={['#10B981']}
+            tintColor="#10B981"
+            progressBackgroundColor="#121212"
+          />
+        }
+      >
         {/* Header Section - Visually heavy element at the top */}
         <View style={styles.headerContainer}>
           <Text style={styles.headerTitle}>Highmark</Text>
@@ -191,35 +361,43 @@ export const HomeScreen = () => {
         {/* Featured Strains Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Featured Strains</Text>
-          <View style={styles.strainListContainer}>
-            <FlatList
-              data={mockStrains}
-              renderItem={renderStrainCard}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.strainList}
-              contentContainerStyle={styles.strainListContent}
-              snapToInterval={cardWidth + 12} // Snap to each card + margin
-              decelerationRate="fast"
-              // Show a bit of the next card to indicate scrollability
-              contentInset={{ right: 40 }}
-              contentOffset={{ x: 0, y: 0 }}
-              nestedScrollEnabled={true}
-            />
-            {/* Add a fade effect on the right edge to indicate more content */}
-            <View style={styles.fadeEffect} />
-          </View>
+          {loadingStrains ? (
+            renderLoading()
+          ) : (
+            <View style={styles.strainListContainer}>
+              <FlatList
+                data={strains}
+                renderItem={renderStrainCard}
+                keyExtractor={(item) => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.strainList}
+                contentContainerStyle={styles.strainListContent}
+                snapToInterval={cardWidth + 12} // Snap to each card + margin
+                decelerationRate="fast"
+                // Show a bit of the next card to indicate scrollability
+                contentInset={{ right: 40 }}
+                contentOffset={{ x: 0, y: 0 }}
+                nestedScrollEnabled={true}
+              />
+              {/* Add a fade effect on the right edge to indicate more content */}
+              <View style={styles.fadeEffect} />
+            </View>
+          )}
         </View>
         
         {/* Recent Reviews Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Recent Reviews</Text>
-          {mockReviews.map((item) => (
-            <React.Fragment key={item.id}>
-              {renderReviewCard({ item })}
-            </React.Fragment>
-          ))}
+          {loadingReviews ? (
+            renderLoading()
+          ) : (
+            reviews.map((item) => (
+              <React.Fragment key={item.id}>
+                {renderReviewCard({ item })}
+              </React.Fragment>
+            ))
+          )}
         </View>
         
         {/* Bottom padding to ensure content doesn't get cut off */}
@@ -450,5 +628,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3B82F6',
     fontWeight: '600',
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 }); 

@@ -1,1 +1,1 @@
-INSERT INTO strains (name, type, thc_percentage, cbd_percentage, effects, flavors, description, image_url, approved) VALUES ('Blue Dream', 'Hybrid', 18.0, 0.1, ARRAY['Relaxed', 'Happy'], ARRAY['Berry', 'Sweet'], 'Test strain', 'https://example.com/test.jpg', TRUE);
+-- Empty seed file
