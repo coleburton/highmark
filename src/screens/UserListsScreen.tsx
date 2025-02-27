@@ -47,11 +47,6 @@ export default function UserListsScreen({ route }: UserListsScreenProps) {
       //   .select('username')
       //   .eq('id', userId)
       //   .single();
-      //   
-      // if (error) throw error;
-      // if (data) {
-      //   setUsername(data.username);
-      // }
     } catch (error) {
       console.error('Error fetching username:', error);
     }
@@ -89,7 +84,7 @@ export default function UserListsScreen({ route }: UserListsScreenProps) {
       
       // In a real app with Supabase:
       // const { data: userData, error: userError } = await supabase
-      //   .from('users')
+      //   .from('profiles')
       //   .select('username')
       //   .eq('id', userId)
       //   .single();

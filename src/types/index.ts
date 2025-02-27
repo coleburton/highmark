@@ -22,6 +22,7 @@ export type Strain = {
   created_at: string;
   submitted_by: string;
   approved: boolean;
+  featured?: boolean;
 };
 
 export type Review = {

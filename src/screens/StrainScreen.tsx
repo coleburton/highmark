@@ -133,6 +133,19 @@ export const StrainScreen = ({ route, navigation }: Props) => {
         return;
       }
       
+      // Check if the strain ID is a mock ID (starts with "strain-")
+      const isMockId = strain.id.startsWith('strain-');
+      
+      if (isMockId) {
+        console.log('Using mock data for strain reviews with ID:', strain.id);
+        // Get strain reviews from mock data
+        const reviews = mockReviews.filter((r) => r.strain_id === strain.id);
+        setStrainReviews(reviews);
+        reviewCache.set(strain.id, reviews);
+        return;
+      }
+      
+      // If it's a real UUID, use Supabase
       const { data, error } = await supabase
         .from('reviews')
         .select(`
@@ -168,6 +181,11 @@ export const StrainScreen = ({ route, navigation }: Props) => {
   // Get all available images for this strain
   const strainImages = useMemo(() => {
     if (!strain) return [];
+    // If the strain has an image_url, use it
+    if (strain.image_url) {
+      return [{ uri: strain.image_url }];
+    }
+    // Otherwise fall back to the legacy function
     return getAllStrainImages(strain.id);
   }, [strain]);
 
@@ -265,7 +283,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
           <ScrollView>
             <View style={styles.heroSection}>
               <Image 
-                source={getAllStrainImages(strain.id)[0]} 
+                source={strain.image_url ? { uri: strain.image_url } : getAllStrainImages(strain.id)[0]} 
                 style={styles.heroImage} 
                 resizeMode="cover"
               />
@@ -358,7 +376,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             />
             <View>
               <Text style={styles.userName}>
-                {userProfile?.username || 'Anonymous User'}
+                {userProfile?.username || mockUsers.find(user => user.id === item.user_id)?.username || 'Unknown User'}
               </Text>
               <View style={styles.ratingContainer}>
                 <Rating 
@@ -709,7 +727,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
                     }}
                   >
                     <Image 
-                      source={getStrainImage(item.id)} 
+                      source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)} 
                       style={styles.relatedStrainImage} 
                       resizeMode="cover"
                     />
@@ -1423,5 +1441,74 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#ffffff',
     marginLeft: 4,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#666',
+  },
+  notFoundContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  notFoundIcon: {
+    fontSize: 48,
+    color: '#666',
+    marginBottom: 10,
+  },
+  notFoundTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  notFoundText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  tags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  flavorTag: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 15,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    margin: 4,
+  },
+  flavorTagText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  userContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  username: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 10,
+  },
+  reviewRating: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
 }); 

@@ -80,30 +80,18 @@ export const UserOnboardingScreen = ({ onComplete }: UserOnboardingScreenProps) 
         return;
       }
       
-      // Update the user record
-      const { error: updateUserError } = await supabase
-        .from('users')
+      // Update the profiles table with the same information
+      const { error: updateError } = await supabase
+        .from('profiles')
         .update({
-          username,
+          username: username,
           first_name: firstName,
           last_name: lastName,
           location: location.trim() !== '' ? location : null
         })
-        .eq('auth_id', user?.id);
-      
-      if (updateUserError) throw updateUserError;
-      
-      // Also update the profiles table with the same information
-      const { error: updateProfileError } = await supabase
-        .from('profiles')
-        .update({
-          username,
-          first_name: firstName,
-          last_name: lastName
-        })
         .eq('id', user?.id);
       
-      if (updateProfileError) throw updateProfileError;
+      if (updateError) throw updateError;
       
       onComplete();
     } catch (error) {
