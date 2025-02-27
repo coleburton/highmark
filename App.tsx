@@ -4,6 +4,7 @@ import { Navigation } from './src/navigation';
 import { SplashScreen } from './src/screens/SplashScreen';
 import { AgeVerificationScreen } from './src/screens/AgeVerificationScreen';
 import { AuthScreen } from './src/screens/AuthScreen';
+import { UserOnboardingScreen } from './src/screens/UserOnboardingScreen';
 import { ProductPreferencesScreen } from './src/screens/ProductPreferencesScreen';
 import { FavoriteStrainsScreen } from './src/screens/FavoriteStrainsScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +13,7 @@ type AppScreen =
   | 'splash' 
   | 'ageVerification' 
   | 'auth' 
+  | 'userOnboarding'
   | 'productPreferences' 
   | 'favoriteStrains' 
   | 'main';
@@ -69,10 +71,14 @@ export default function App() {
 
   const handleAuthenticated = () => {
     if (isFirstLogin) {
-      setCurrentScreen('productPreferences');
+      setCurrentScreen('userOnboarding');
     } else {
       setCurrentScreen('main');
     }
+  };
+
+  const handleUserOnboardingComplete = () => {
+    setCurrentScreen('productPreferences');
   };
 
   const handleProductPreferencesComplete = () => {
@@ -119,6 +125,9 @@ export default function App() {
       )}
       {currentScreen === 'auth' && (
         <AuthScreen onAuthenticated={handleAuthenticated} />
+      )}
+      {currentScreen === 'userOnboarding' && (
+        <UserOnboardingScreen onComplete={handleUserOnboardingComplete} />
       )}
       {currentScreen === 'productPreferences' && (
         <ProductPreferencesScreen onComplete={handleProductPreferencesComplete} />
