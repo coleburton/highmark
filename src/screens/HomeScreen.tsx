@@ -27,9 +27,15 @@ type RootStackParamList = {
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Extend the ExtendedReview interface to include profiles property
-interface ExtendedReview extends BaseExtendedReview {
-  profiles?: {
+// Extend the ExtendedReview interface to include user property
+interface ExtendedReview extends Review {
+  strains: {
+    id: string;
+    name: string;
+    type: string;
+    image_url?: string;
+  };
+  user?: {
     id: string;
     username: string;
     avatar_url?: string;
@@ -245,7 +251,7 @@ export const HomeScreen = () => {
     const isLongReview = item.review_text.length > 80;
     
     // Get the user data
-    const user = item.user || item.profiles;
+    const user = item.user;
     
     return (
       <View style={styles.reviewCard}>

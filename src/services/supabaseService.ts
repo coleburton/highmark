@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { Strain, Review, User } from '../types';
+import { mockReviews, mockStrains, mockUsers } from '../data/mockData';
 
 // Type for the extended review with strain info
 export interface ExtendedReview extends Review {
@@ -9,7 +10,6 @@ export interface ExtendedReview extends Review {
     type: string;
     image_url?: string;
   };
-  user?: User;
   profiles?: {
     id: string;
     username: string;
@@ -24,30 +24,49 @@ export interface ExtendedReview extends Review {
  */
 export const getFeaturedStrains = async (limit = 8): Promise<Strain[]> => {
   try {
+    // First try to get featured strains (strains with featured flag set to true)
     const { data, error } = await supabase
       .from('strains')
       .select('*')
+      .eq('featured', true)
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) {
       console.error('Error fetching featured strains:', error);
-      throw error;
+      console.log('Falling back to mock data due to error');
+      return mockStrains.slice(0, limit);
     }
 
     // Log the strain IDs for debugging
     if (data && data.length > 0) {
-      console.log(`Fetched ${data.length} strains from Supabase`);
+      console.log(`Fetched ${data.length} featured strains from Supabase`);
       console.log(`First strain ID: ${data[0].id}`);
+      return data;
     } else {
-      console.log('No strains fetched from Supabase, falling back to mock data');
+      console.log('No featured strains found in Supabase, trying to get recently approved strains');
+      
+      // If no featured strains, try to get recently approved strains
+      const { data: recentData, error: recentError } = await supabase
+        .from('strains')
+        .select('*')
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+        
+      if (recentError || !recentData || recentData.length === 0) {
+        console.log('No strains fetched from Supabase, falling back to mock data');
+        return mockStrains.slice(0, limit);
+      }
+      
+      console.log(`Fetched ${recentData.length} recent strains from Supabase`);
+      return recentData;
     }
-
-    return data || [];
   } catch (error) {
     console.error('Error in getFeaturedStrains:', error);
-    return [];
+    console.log('Falling back to mock data due to exception');
+    return mockStrains.slice(0, limit);
   }
 };
 
@@ -62,7 +81,7 @@ export const getRecentReviews = async (limit = 5): Promise<ExtendedReview[]> => 
       .from('reviews')
       .select(`
         *,
-        strains:strain_id (
+        strains (
           id,
           name,
           type,
@@ -79,20 +98,80 @@ export const getRecentReviews = async (limit = 5): Promise<ExtendedReview[]> => 
 
     if (error) {
       console.error('Error fetching recent reviews:', error);
-      throw error;
+      console.log('Falling back to mock data due to error');
+      // Return mock reviews with strain data
+      return mockReviews.slice(0, limit).map(review => {
+        const strain = mockStrains.find(s => s.id === review.strain_id);
+        const user = mockUsers.find(u => u.id === review.user_id);
+        return {
+          ...review,
+          strains: strain ? {
+            id: strain.id,
+            name: strain.name,
+            type: strain.type,
+            image_url: strain.image_url
+          } : undefined,
+          profiles: user ? {
+            id: user.id,
+            username: user.username,
+            avatar_url: user.avatar_url
+          } : null
+        } as unknown as ExtendedReview;
+      });
     }
 
     // Transform the data to match the expected format
-    const transformedData = data?.map(item => ({
-      ...item,
-      user: item.profiles,
-      profiles: undefined // Remove the profiles property
-    })) || [];
-
-    return transformedData as unknown as ExtendedReview[];
+    if (data && data.length > 0) {
+      console.log(`Fetched ${data.length} reviews from Supabase`);
+      const transformedData = data.map(item => ({
+        ...item,
+        profiles: item.profiles,
+      }));
+      return transformedData as unknown as ExtendedReview[];
+    } else {
+      console.log('No reviews fetched from Supabase, falling back to mock data');
+      // Return mock reviews with strain data
+      return mockReviews.slice(0, limit).map(review => {
+        const strain = mockStrains.find(s => s.id === review.strain_id);
+        const user = mockUsers.find(u => u.id === review.user_id);
+        return {
+          ...review,
+          strains: strain ? {
+            id: strain.id,
+            name: strain.name,
+            type: strain.type,
+            image_url: strain.image_url
+          } : undefined,
+          profiles: user ? {
+            id: user.id,
+            username: user.username,
+            avatar_url: user.avatar_url
+          } : null
+        } as unknown as ExtendedReview;
+      });
+    }
   } catch (error) {
     console.error('Error in getRecentReviews:', error);
-    return [];
+    console.log('Falling back to mock data due to exception');
+    // Return mock reviews with strain data
+    return mockReviews.slice(0, limit).map(review => {
+      const strain = mockStrains.find(s => s.id === review.strain_id);
+      const user = mockUsers.find(u => u.id === review.user_id);
+      return {
+        ...review,
+        strains: strain ? {
+          id: strain.id,
+          name: strain.name,
+          type: strain.type,
+          image_url: strain.image_url
+        } : undefined,
+        profiles: user ? {
+          id: user.id,
+          username: user.username,
+          avatar_url: user.avatar_url
+        } : null
+      } as unknown as ExtendedReview;
+    });
   }
 };
 
@@ -217,11 +296,42 @@ export const getUserFavoriteStrains = async (): Promise<string[]> => {
  */
 export const getReviewById = async (reviewId: string): Promise<ExtendedReview | null> => {
   try {
+    // Check if reviewId is a mock ID (like "review-1")
+    const isMockId = reviewId.startsWith('review-');
+    
+    if (isMockId) {
+      console.log('Using mock data for review with ID:', reviewId);
+      // Find the review in mock data
+      const mockReview = mockReviews.find(r => r.id === reviewId);
+      if (mockReview) {
+        const strain = mockStrains.find(s => s.id === mockReview.strain_id);
+        const user = mockUsers.find(u => u.id === mockReview.user_id);
+        return {
+          ...mockReview,
+          strains: strain ? {
+            id: strain.id,
+            name: strain.name,
+            type: strain.type,
+            image_url: strain.image_url
+          } : undefined,
+          profiles: user ? {
+            id: user.id,
+            username: user.username,
+            avatar_url: user.avatar_url
+          } : null
+        } as unknown as ExtendedReview;
+      } else {
+        console.log(`No mock review found with ID: ${reviewId}`);
+        return null;
+      }
+    }
+    
+    // If it's a real UUID, use Supabase
     const { data, error } = await supabase
       .from('reviews')
       .select(`
         *,
-        strains:strain_id (
+        strains (
           id,
           name,
           type,
@@ -249,8 +359,7 @@ export const getReviewById = async (reviewId: string): Promise<ExtendedReview | 
     // Transform the data to match the expected format
     const transformedData = {
       ...data,
-      user: data.profiles,
-      profiles: undefined // Remove the profiles property
+      profiles: data.profiles,
     };
 
     return transformedData as unknown as ExtendedReview;
@@ -267,8 +376,24 @@ export const getReviewById = async (reviewId: string): Promise<ExtendedReview | 
  */
 export const getUserById = async (userId: string): Promise<User | null> => {
   try {
+    // Check if userId is a mock ID (like "user-1")
+    const isMockId = userId.startsWith('user-');
+    
+    if (isMockId) {
+      console.log('Using mock data for user with ID:', userId);
+      // Find the user in mock data
+      const mockUser = mockUsers.find(u => u.id === userId);
+      if (mockUser) {
+        return mockUser;
+      } else {
+        console.log(`No mock user found with ID: ${userId}`);
+        return null;
+      }
+    }
+    
+    // If it's a real UUID, use Supabase
     const { data, error } = await supabase
-      .from('profiles')
+      .from('users')
       .select('*')
       .eq('id', userId)
       .single();
@@ -298,11 +423,39 @@ export const getUserById = async (userId: string): Promise<User | null> => {
  */
 export const getUserReviews = async (userId: string, limit = 10): Promise<ExtendedReview[]> => {
   try {
+    // Check if userId is a UUID (Supabase format) or a mock ID (like "user-1")
+    const isMockId = userId.startsWith('user-');
+    
+    if (isMockId) {
+      console.log('Using mock data for user reviews with ID:', userId);
+      
+      // Filter mock reviews for this user
+      const userReviews = mockReviews
+        .filter(review => review.user_id === userId)
+        .map(review => {
+          const strain = mockStrains.find(s => s.id === review.strain_id);
+          return {
+            ...review,
+            strains: strain ? {
+              id: strain.id,
+              name: strain.name,
+              type: strain.type,
+              image_url: strain.image_url
+            } : undefined,
+            profiles: mockUsers.find(u => u.id === review.user_id)
+          } as unknown as ExtendedReview;
+        })
+        .slice(0, limit);
+      
+      return userReviews;
+    }
+    
+    // If it's a real UUID, use Supabase
     const { data, error } = await supabase
       .from('reviews')
       .select(`
         *,
-        strains:strain_id (
+        strains (
           id,
           name,
           type,
@@ -326,8 +479,7 @@ export const getUserReviews = async (userId: string, limit = 10): Promise<Extend
     // Transform the data to match the expected format
     const transformedData = data?.map(item => ({
       ...item,
-      user: item.profiles,
-      profiles: undefined // Remove the profiles property
+      profiles: item.profiles,
     })) || [];
 
     return transformedData as unknown as ExtendedReview[];

@@ -72,7 +72,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
   }
 
   const strain = review.strains;
-  const user = review.user || review.profiles;
+  const user = review.user;
 
   if (!user) {
     return (

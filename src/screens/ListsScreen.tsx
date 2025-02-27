@@ -139,7 +139,7 @@ export const ListsScreen = () => {
       onPress={() => navigation.navigate('Strain', { strainId: item.id })}
     >
       <Image 
-        source={getStrainImage(item.id)} 
+        source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)} 
         style={styles.strainImage} 
         resizeMode="cover"
       />
