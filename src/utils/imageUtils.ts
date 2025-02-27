@@ -3,6 +3,7 @@
  */
 
 import { ImageSourcePropType } from 'react-native';
+import { Strain } from '../types';
 
 // Define the mapping of strain IDs to their image filenames
 const strainImages: Record<string, string> = {
@@ -15,18 +16,37 @@ const strainImages: Record<string, string> = {
   'strain-7': 'gsc_1.jpg',
 };
 
-// Default image to use if a strain image is not found - keeping this as a fallback
+// Default image to use if a strain image is not found
 const DEFAULT_STRAIN_IMAGE = { uri: 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain' };
 
 // Cache for loaded images to avoid repeated requires
 const imageCache: Record<string, any> = {};
 
 /**
- * Get the image for a strain based on its ID
+ * Get the image for a strain based on its image_url
+ * @param strain The strain object
+ * @returns The image source for the strain
+ */
+export const getStrainImage = (strain: Strain | string | null): ImageSourcePropType => {
+  // If it's a string, assume it's a strain ID and use the legacy function
+  if (typeof strain === 'string') {
+    return getStrainImageById(strain);
+  }
+  
+  // If it's a strain object, use the image_url
+  if (strain && 'image_url' in strain && strain.image_url) {
+    return { uri: strain.image_url };
+  }
+  
+  return DEFAULT_STRAIN_IMAGE;
+};
+
+/**
+ * Get the image for a strain based on its ID (legacy function)
  * @param strainId The ID of the strain
  * @returns The image source for the strain
  */
-export const getStrainImage = (strainId: string): ImageSourcePropType => {
+export const getStrainImageById = (strainId: string): ImageSourcePropType => {
   try {
     // Map of strain IDs to their respective image sources
     const imageMap: Record<string, ImageSourcePropType> = {
@@ -49,21 +69,19 @@ export const getStrainImage = (strainId: string): ImageSourcePropType => {
 };
 
 /**
- * Get all images for a strain
- * @param strainId The ID of the strain
- * @returns Array of image objects for the strain
+ * Get all images for a strain (legacy function for backward compatibility)
+ * @param strain The strain object or ID
+ * @returns Array with a single image object for the strain
  */
-export function getAllStrainImages(strainId: string): any[] {
-  // Always return at least one image (either the strain image or the default)
-  return [getStrainImage(strainId)];
+export function getAllStrainImages(strain: Strain | string | null): ImageSourcePropType[] {
+  return [getStrainImage(strain)];
 }
 
 /**
- * Check if a strain has multiple images
- * @param strainId The ID of the strain
+ * Check if a strain has multiple images (legacy function for backward compatibility)
  * @returns Always false since we only have one image per strain
  */
-export function hasMultipleImages(strainId: string): boolean {
+export function hasMultipleImages(): boolean {
   return false;
 }
 

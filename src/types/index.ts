@@ -17,8 +17,7 @@ export type Strain = {
   CBD_percentage: number;
   effects: string[];
   flavors: string[];
-  images: string[];
-  image_url?: string;
+  image_url: string;
   description?: string;
   created_at: string;
   submitted_by: string;
