@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,28 +9,137 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../hooks/useAuth';
+
+// Custom Password Input Component to prevent autofill highlighting
+interface PasswordInputProps {
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  showPassword: boolean;
+  showToggle?: boolean;
+  onTogglePassword?: () => void;
+}
+
+const PasswordInput = ({ 
+  value, 
+  onChangeText, 
+  placeholder, 
+  showPassword, 
+  showToggle = true,
+  onTogglePassword = () => {} 
+}: PasswordInputProps) => {
+  return (
+    <View style={styles.inputContainer}>
+      <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
+      <View style={styles.passwordInputBackground}>
+        <TextInput
+          style={[styles.input, { backgroundColor: 'transparent' }]}
+          placeholder={placeholder}
+          placeholderTextColor="rgba(255, 255, 255, 0.4)"
+          value={value}
+          onChangeText={onChangeText}
+          secureTextEntry={!showPassword}
+          autoCapitalize="none"
+          autoComplete="new-password"
+          textContentType="oneTimeCode"
+          autoCorrect={false}
+          keyboardType={Platform.OS === 'ios' ? 'default' : 'visible-password'}
+        />
+      </View>
+      {showToggle && (
+        <TouchableOpacity
+          style={styles.passwordToggle}
+          onPress={onTogglePassword}
+        >
+          <Feather
+            name={showPassword ? 'eye-off' : 'eye'}
+            size={20}
+            color="rgba(255, 255, 255, 0.6)"
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
 
 interface AuthScreenProps {
   onAuthenticated: () => void;
 }
 
 export const AuthScreen = ({ onAuthenticated }: AuthScreenProps) => {
+  const { signIn, signUp, user } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleAuth = () => {
-    // In a real app, this would connect to your authentication service
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+  // Check if user is already authenticated
+  useEffect(() => {
+    if (user) {
       onAuthenticated();
-    }, 1500);
+    }
+  }, [user, onAuthenticated]);
+
+  // Clear password fields on mount to prevent autofill
+  useEffect(() => {
+    // Small delay to ensure the component is fully mounted
+    const timer = setTimeout(() => {
+      setPassword('');
+      setConfirmPassword('');
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleAuth = async () => {
+    if (!isFormValid()) return;
+    
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      if (isLogin) {
+        // Handle login
+        const { error } = await signIn(email, password);
+        if (error) throw error;
+      } else {
+        // Handle signup
+        const { error } = await signUp(email, password, username, firstName, lastName);
+        if (error) throw error;
+        
+        // Show success message for sign up
+        Alert.alert(
+          'Account Created',
+          'Your account has been created successfully. Please check your email for verification.',
+          [{ text: 'OK', onPress: () => setIsLogin(true) }]
+        );
+        
+        // Reset form
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setUsername('');
+        setFirstName('');
+        setLastName('');
+        setIsLoading(false);
+        return;
+      }
+    } catch (err) {
+      console.error('Authentication error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSocialAuth = (provider: string) => {
@@ -47,11 +156,19 @@ export const AuthScreen = ({ onAuthenticated }: AuthScreenProps) => {
     setIsLogin(!isLogin);
     setPassword('');
     setConfirmPassword('');
+    setUsername('');
+    setFirstName('');
+    setLastName('');
+    setError('');
   };
 
   const isFormValid = () => {
     if (!email || !password) return false;
-    if (!isLogin && password !== confirmPassword) return false;
+    if (!isLogin) {
+      if (password !== confirmPassword) return false;
+      if (!username || username.length < 3) return false;
+      if (!firstName || !lastName) return false;
+    }
     return true;
   };
 
@@ -73,6 +190,12 @@ export const AuthScreen = ({ onAuthenticated }: AuthScreenProps) => {
           </Text>
         </View>
 
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
             <Feather name="mail" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
@@ -87,42 +210,66 @@ export const AuthScreen = ({ onAuthenticated }: AuthScreenProps) => {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="rgba(255, 255, 255, 0.4)"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-            <TouchableOpacity
-              style={styles.passwordToggle}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Feather
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={20}
-                color="rgba(255, 255, 255, 0.6)"
-              />
-            </TouchableOpacity>
-          </View>
-
           {!isLogin && (
             <View style={styles.inputContainer}>
-              <Feather name="lock" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
+              <Feather name="at-sign" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Confirm Password"
+                placeholder="Username"
                 placeholderTextColor="rgba(255, 255, 255, 0.4)"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showPassword}
+                value={username}
+                onChangeText={setUsername}
                 autoCapitalize="none"
               />
             </View>
+          )}
+
+          {!isLogin && (
+            <View style={styles.inputContainer}>
+              <Feather name="user" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="First Name"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={firstName}
+                onChangeText={setFirstName}
+                autoCapitalize="words"
+              />
+            </View>
+          )}
+
+          {!isLogin && (
+            <View style={styles.inputContainer}>
+              <Feather name="user" size={20} color="rgba(255, 255, 255, 0.6)" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Last Name"
+                placeholderTextColor="rgba(255, 255, 255, 0.4)"
+                value={lastName}
+                onChangeText={setLastName}
+                autoCapitalize="words"
+              />
+            </View>
+          )}
+
+          <PasswordInput
+            key={`password-${isLogin ? 'login' : 'signup'}`}
+            value={password}
+            onChangeText={setPassword}
+            placeholder="Password"
+            showPassword={showPassword}
+            onTogglePassword={() => setShowPassword(!showPassword)}
+          />
+
+          {!isLogin && (
+            <PasswordInput
+              key={`confirm-password-${isLogin ? 'login' : 'signup'}`}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="Confirm Password"
+              showPassword={showPassword}
+              showToggle={false}
+            />
           )}
 
           {isLogin && (
@@ -212,6 +359,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     marginTop: 8,
   },
+  errorContainer: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 14,
+    textAlign: 'center',
+  },
   formContainer: {
     marginBottom: 24,
   },
@@ -231,6 +389,11 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#FFFFFF',
     fontSize: 16,
+    height: '100%',
+  },
+  passwordInputBackground: {
+    flex: 1,
+    backgroundColor: '#1E1E1E',
     height: '100%',
   },
   passwordToggle: {
