@@ -92,7 +92,7 @@ const MainTabs = () => {
         name="Home"
         component={HomeScreen}
         options={{
-          title: 'Discover',
+          title: 'Highmark',
           tabBarIcon: ({ color, size }) => (
             <Feather name="home" size={size} color={color} />
           ),
