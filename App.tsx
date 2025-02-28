@@ -8,6 +8,7 @@ import { UserOnboardingScreen } from './src/screens/UserOnboardingScreen';
 import { ProductPreferencesScreen } from './src/screens/ProductPreferencesScreen';
 import { FavoriteStrainsScreen } from './src/screens/FavoriteStrainsScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './src/hooks/useAuth';
 
 type AppScreen = 
   | 'splash' 
@@ -19,6 +20,7 @@ type AppScreen =
   | 'main';
 
 export default function App() {
+  const { user, isLoading: authLoading } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<AppScreen>('splash');
   const [isFirstLogin, setIsFirstLogin] = useState(true);
   const [isNavigationReady, setIsNavigationReady] = useState(false);
@@ -39,6 +41,20 @@ export default function App() {
 
     checkOnboardingStatus();
   }, []);
+
+  // Check if user is already logged in and set appropriate screen
+  useEffect(() => {
+    if (!authLoading) {
+      if (user) {
+        // User is already logged in, skip splash and age verification
+        if (isFirstLogin) {
+          setCurrentScreen('userOnboarding');
+        } else {
+          setCurrentScreen('main');
+        }
+      }
+    }
+  }, [user, authLoading, isFirstLogin]);
 
   // Handle transition to main app
   useEffect(() => {
@@ -114,6 +130,16 @@ export default function App() {
     return null;
   };
 
+  // Show loading screen while auth is being checked
+  if (authLoading && currentScreen === 'splash') {
+    return (
+      <View style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#121212" />
+        <SplashScreen onFinish={() => {}} />
+      </View>
+    );
+  }
+
   return (
     <>
       <StatusBar barStyle="light-content" backgroundColor="#121212" />
@@ -141,6 +167,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#121212',
+  },
   mainContainer: {
     flex: 1,
   },

@@ -367,12 +367,6 @@ export const HomeScreen = () => {
           />
         }
       >
-        {/* Header Section - Visually heavy element at the top */}
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>Highmark</Text>
-          <Text style={styles.headerSubtitle}>Discover and track your cannabis journey</Text>
-        </View>
-        
         {/* Search Section */}
         <View style={styles.searchSection}>
           <SearchBar 
@@ -443,24 +437,17 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     marginTop: 12,
-    marginBottom: 24,
+    marginBottom: 16,
     paddingHorizontal: 4,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 8,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#9CA3AF',
-    fontWeight: '500',
-  },
   searchSection: {
+    marginTop: 12,
     marginBottom: 24,
   },
   sectionContainer: {
