@@ -1,6 +1,5 @@
 import { supabase } from '../lib/supabase';
 import { Strain, Review, User } from '../types';
-import { mockReviews, mockStrains, mockUsers } from '../data/mockData';
 
 // Type for the extended review with strain info
 export interface ExtendedReview extends Review {
@@ -24,19 +23,18 @@ export interface ExtendedReview extends Review {
  */
 export const getFeaturedStrains = async (limit = 8): Promise<Strain[]> => {
   try {
-    // First try to get featured strains (strains with featured flag set to true)
+    // First try to get featured strains (strains with is_featured flag set to true)
     const { data, error } = await supabase
       .from('strains')
       .select('*')
-      .eq('featured', true)
+      .eq('is_featured', true)
       .eq('approved', true)
       .order('created_at', { ascending: false })
       .limit(limit);
 
     if (error) {
       console.error('Error fetching featured strains:', error);
-      console.log('Falling back to mock data due to error');
-      return mockStrains.slice(0, limit);
+      return []; // Return empty array instead of mock data
     }
 
     // Log the strain IDs for debugging
@@ -55,18 +53,17 @@ export const getFeaturedStrains = async (limit = 8): Promise<Strain[]> => {
         .order('created_at', { ascending: false })
         .limit(limit);
         
-      if (recentError || !recentData || recentData.length === 0) {
-        console.log('No strains fetched from Supabase, falling back to mock data');
-        return mockStrains.slice(0, limit);
+      if (recentError) {
+        console.error('Error fetching recent strains:', recentError);
+        return []; // Return empty array instead of mock data
       }
       
-      console.log(`Fetched ${recentData.length} recent strains from Supabase`);
-      return recentData;
+      console.log(`Fetched ${recentData?.length || 0} recent strains from Supabase`);
+      return recentData || [];
     }
   } catch (error) {
     console.error('Error in getFeaturedStrains:', error);
-    console.log('Falling back to mock data due to exception');
-    return mockStrains.slice(0, limit);
+    return []; // Return empty array instead of mock data
   }
 };
 
@@ -98,26 +95,7 @@ export const getRecentReviews = async (limit = 5): Promise<ExtendedReview[]> => 
 
     if (error) {
       console.error('Error fetching recent reviews:', error);
-      console.log('Falling back to mock data due to error');
-      // Return mock reviews with strain data
-      return mockReviews.slice(0, limit).map(review => {
-        const strain = mockStrains.find(s => s.id === review.strain_id);
-        const user = mockUsers.find(u => u.id === review.user_id);
-        return {
-          ...review,
-          strains: strain ? {
-            id: strain.id,
-            name: strain.name,
-            type: strain.type,
-            image_url: strain.image_url
-          } : undefined,
-          profiles: user ? {
-            id: user.id,
-            username: user.username,
-            avatar_url: user.avatar_url
-          } : null
-        } as unknown as ExtendedReview;
-      });
+      return []; // Return empty array instead of mock data
     }
 
     // Transform the data to match the expected format
@@ -129,49 +107,12 @@ export const getRecentReviews = async (limit = 5): Promise<ExtendedReview[]> => 
       }));
       return transformedData as unknown as ExtendedReview[];
     } else {
-      console.log('No reviews fetched from Supabase, falling back to mock data');
-      // Return mock reviews with strain data
-      return mockReviews.slice(0, limit).map(review => {
-        const strain = mockStrains.find(s => s.id === review.strain_id);
-        const user = mockUsers.find(u => u.id === review.user_id);
-        return {
-          ...review,
-          strains: strain ? {
-            id: strain.id,
-            name: strain.name,
-            type: strain.type,
-            image_url: strain.image_url
-          } : undefined,
-          profiles: user ? {
-            id: user.id,
-            username: user.username,
-            avatar_url: user.avatar_url
-          } : null
-        } as unknown as ExtendedReview;
-      });
+      console.log('No reviews fetched from Supabase');
+      return []; // Return empty array instead of mock data
     }
   } catch (error) {
     console.error('Error in getRecentReviews:', error);
-    console.log('Falling back to mock data due to exception');
-    // Return mock reviews with strain data
-    return mockReviews.slice(0, limit).map(review => {
-      const strain = mockStrains.find(s => s.id === review.strain_id);
-      const user = mockUsers.find(u => u.id === review.user_id);
-      return {
-        ...review,
-        strains: strain ? {
-          id: strain.id,
-          name: strain.name,
-          type: strain.type,
-          image_url: strain.image_url
-        } : undefined,
-        profiles: user ? {
-          id: user.id,
-          username: user.username,
-          avatar_url: user.avatar_url
-        } : null
-      } as unknown as ExtendedReview;
-    });
+    return []; // Return empty array instead of mock data
   }
 };
 

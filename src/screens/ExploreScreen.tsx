@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -8,14 +8,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  FlatList
+  FlatList,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SearchBar } from '../components/SearchBar';
 import { mockStrains, mockReviews, mockUsers } from '../data/mockData';
-import { getStrainImage } from '../utils/imageUtils';
+import { getStrainImageSync } from '../utils/imageUtils';
 import { Strain, Review } from '../types';
 
 // Extended review type to match the actual structure in mockData
@@ -65,7 +66,7 @@ export const ExploreScreen = () => {
       onPress={() => navigation.navigate('Strain', { strainId: item.id })}
     >
       <Image 
-        source={getStrainImage(item.id)} 
+        source={getStrainImageSync(item.id)} 
         style={styles.strainImage} 
         resizeMode="cover"
       />
@@ -74,7 +75,7 @@ export const ExploreScreen = () => {
         <View style={styles.strainMeta}>
           <Text style={styles.strainType}>{item.type}</Text>
           <View style={styles.thcBadge}>
-            <Text style={styles.thcText}>THC: {item.THC_percentage}%</Text>
+            <Text style={styles.thcText}>THC: {item.thc_percentage}%</Text>
           </View>
         </View>
       </View>

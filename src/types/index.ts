@@ -13,16 +13,17 @@ export type Strain = {
   id: string;
   name: string;
   type: 'Indica' | 'Sativa' | 'Hybrid';
-  THC_percentage: number;
-  CBD_percentage: number;
+  thc_percentage: number;
+  cbd_percentage: number;
   effects: string[];
   flavors: string[];
-  image_url: string;
+  image_url?: string;
+  images?: string[];
   description?: string;
   created_at: string;
   submitted_by: string;
   approved: boolean;
-  featured?: boolean;
+  is_featured?: boolean;
 };
 
 export type Review = {

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, Image, ScrollView, StyleSheet, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { mockStrains, mockUsers } from '../data/mockData';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getStrainImage } from '../utils/imageUtils';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { getStrainImageSync, DEFAULT_STRAIN_IMAGE } from '../utils/imageUtils';
 import { getReviewById } from '../services/supabaseService';
 import { ExtendedReview } from '../services/supabaseService';
 
@@ -72,7 +72,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
   }
 
   const strain = review.strains;
-  const user = review.user;
+  const user = mockUsers.find(u => u.id === review.user_id);
 
   if (!user) {
     return (
@@ -159,7 +159,7 @@ export const ReviewScreen = ({ route, navigation }: Props) => {
               onPress={() => strain && navigation.navigate('Strain', { strainId: strain.id })}
             >
               <Image 
-                source={strain ? (strain.image_url ? { uri: strain.image_url } : getStrainImage(strain.id)) : { uri: 'https://placehold.co/400x400/10B981/FFFFFF/png?text=Strain' }} 
+                source={strain ? getStrainImageSync(strain.id) : DEFAULT_STRAIN_IMAGE} 
                 style={styles.photo}
                 resizeMode="cover"
               />

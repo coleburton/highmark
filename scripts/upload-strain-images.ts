@@ -109,10 +109,10 @@ program
 // Helper function to upload an image to Supabase storage
 async function uploadImage(filePath: string, strainId: string): Promise<string> {
   try {
-    // Create a unique filename using the strain ID and timestamp
-    const originalFilename = path.basename(filePath);
-    const fileExt = path.extname(originalFilename);
-    const filename = `${strainId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}${fileExt}`;
+    // Create a unique filename using just the strain ID
+    const fileExt = path.extname(filePath);
+    const filename = `${strainId.replace(/[^a-zA-Z0-9]/g, '_')}${fileExt}`;
+    const storagePath = `images/strains/${filename}`;
     
     // Read the file as buffer
     const fileBuffer = fs.readFileSync(filePath);
@@ -124,7 +124,7 @@ async function uploadImage(filePath: string, strainId: string): Promise<string> 
     // Upload the file to Supabase storage
     const { data, error } = await supabase.storage
       .from('assets')
-      .upload(`images/strains/${filename}`, arrayBuffer, {
+      .upload(storagePath, arrayBuffer, {
         contentType: `image/${fileExt.substring(1)}`,
         upsert: true
       });
@@ -137,9 +137,9 @@ async function uploadImage(filePath: string, strainId: string): Promise<string> 
     // Get the public URL of the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from('assets')
-      .getPublicUrl(`images/strains/${filename}`);
+      .getPublicUrl(storagePath);
     
-    return publicUrl;
+    return publicUrl; // Return the full public URL
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;

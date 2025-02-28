@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, StatusBar, SafeAreaView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { Strain, Review } from '../types';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getStrainImage } from '../utils/imageUtils';
+import { getStrainImage, getStrainImageSync, DEFAULT_STRAIN_IMAGE } from '../utils/imageUtils';
 import { SearchBar } from '../components/SearchBar';
 import { getFeaturedStrains, getRecentReviews, getUserFavoriteStrains, toggleFavoriteStrain, ExtendedReview as BaseExtendedReview } from '../services/supabaseService';
 
 // Fallback to mock data if needed
-import { mockStrains, mockReviews } from '../data/mockData';
+import { mockStrains, mockReviews, mockUsers } from '../data/mockData';
 
 // Import the strain cache from StrainScreen or create a shared cache utility
 import { supabase } from '../lib/supabase';
@@ -80,15 +80,10 @@ export const HomeScreen = () => {
     setLoadingStrains(true);
     try {
       const data = await getFeaturedStrains();
-      if (data.length > 0) {
-        setStrains(data);
-      } else {
-        // Fallback to mock data if no data from Supabase
-        setStrains(mockStrains);
-      }
+      setStrains(data || []);
     } catch (error) {
       console.error('Error fetching strains:', error);
-      setStrains(mockStrains); // Fallback to mock data
+      setStrains([]);
     } finally {
       setLoadingStrains(false);
     }
@@ -201,6 +196,14 @@ export const HomeScreen = () => {
     // Prefetch data when rendering the card
     prefetchStrainData(item.id);
     
+    // Get the image source for the strain using the synchronous version
+    const imageSource = getStrainImageSync(item);
+    
+    // Format THC and CBD percentages with fallbacks for null/undefined values
+    const thcPercentage = item.thc_percentage !== null && item.thc_percentage !== undefined 
+      ? `${item.thc_percentage}%` 
+      : 'N/A';
+    
     return (
       <TouchableOpacity
         style={[styles.strainCard, { width: cardWidth }]}
@@ -213,16 +216,20 @@ export const HomeScreen = () => {
         onLongPress={() => prefetchStrainData(item.id)}
       >
         <Image 
-          source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)} 
+          source={imageSource}
           style={styles.strainImage} 
           resizeMode="cover"
+          // Log errors but don't show them to the user
+          onError={(e) => {
+            console.log(`Image loading error for strain ${item.id}:`, e.nativeEvent.error);
+          }}
         />
         <View style={styles.strainOverlay}>
           <Text style={styles.strainName}>{item.name}</Text>
           <View style={styles.strainMeta}>
             <Text style={styles.strainType}>{item.type}</Text>
             <View style={styles.thcBadge}>
-              <Text style={styles.thcText}>THC: {item.THC_percentage}%</Text>
+              <Text style={styles.thcText}>THC: {thcPercentage}</Text>
             </View>
           </View>
         </View>

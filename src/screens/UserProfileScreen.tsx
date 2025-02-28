@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { mockUsers, mockReviews, mockStrains, mockFavorites, mockFollows, mockLists, mockListFollowers } from '../data/mockData';
-import { getStrainImage } from '../utils/imageUtils';
+import { getStrainImage, getStrainImageSync } from '../utils/imageUtils';
 import { getUserById, getUserReviews } from '../services/supabaseService';
 
 type UserProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'UserProfile'>;
@@ -427,8 +427,9 @@ export default function UserProfileScreen({ route }: UserProfileScreenProps) {
       onPress={() => navigation.navigate('Strain', { strainId: item.id })}
     >
       <Image
-        source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)}
+        source={getStrainImageSync(item.id)}
         style={styles.strainImage}
+        onError={(e) => console.error('Image loading error in UserProfileScreen:', e.nativeEvent.error)}
       />
       <View style={styles.favoriteInfo}>
         <Text style={styles.strainName}>{item.name}</Text>

@@ -62,6 +62,14 @@ export default function ProfileScreen({ route }: ProfileScreenProps) {
   // Use a mock current user ID
   const currentUserId = 'user-1'; // Using JaneGreen as the current user
 
+  // Add a debug mode state
+  const [debugMode, setDebugMode] = useState(false);
+  
+  // Function to navigate to debug screen
+  const navigateToDebugScreen = () => {
+    navigation.navigate('Debug');
+  };
+
   useEffect(() => {
     fetchUserProfile();
     fetchUserReviews();
@@ -505,6 +513,25 @@ export default function ProfileScreen({ route }: ProfileScreenProps) {
           <Text style={styles.emptyText}>No reviews yet</Text>
         )}
       </View>
+
+      {/* Debug button - only visible after 5 taps on username */}
+      <TouchableOpacity 
+        style={styles.usernameContainer} 
+        onPress={() => {
+          setDebugMode(prev => !prev);
+        }}
+      >
+        <Text style={styles.username}>{user?.username || 'User'}</Text>
+      </TouchableOpacity>
+      
+      {debugMode && (
+        <TouchableOpacity 
+          style={styles.debugButton}
+          onPress={navigateToDebugScreen}
+        >
+          <Text style={styles.debugButtonText}>Debug Images</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }
@@ -791,5 +818,20 @@ const styles = StyleSheet.create({
   },
   listsList: {
     paddingBottom: 8,
+  },
+  debugButton: {
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 8,
+    marginVertical: 10,
+    alignSelf: 'center',
+  },
+  debugButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  usernameContainer: {
+    alignSelf: 'center',
+    padding: 10,
   },
 }); 

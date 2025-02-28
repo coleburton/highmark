@@ -7,6 +7,7 @@ export default {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'dark',
+  newArchEnabled: true,
   splash: {
     image: './assets/splash.png',
     resizeMode: 'contain',
@@ -43,5 +44,7 @@ export default {
         },
       },
     ],
+    'expo-font',
+    'expo-secure-store',
   ],
 }; 
