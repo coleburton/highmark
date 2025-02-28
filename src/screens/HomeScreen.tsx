@@ -204,6 +204,10 @@ export const HomeScreen = () => {
       ? `${item.thc_percentage}%` 
       : 'N/A';
     
+    const cbdPercentage = item.cbd_percentage !== null && item.cbd_percentage !== undefined 
+      ? `${item.cbd_percentage}%` 
+      : 'N/A';
+    
     return (
       <TouchableOpacity
         style={[styles.strainCard, { width: cardWidth }]}
@@ -224,12 +228,19 @@ export const HomeScreen = () => {
             console.log(`Image loading error for strain ${item.id}:`, e.nativeEvent.error);
           }}
         />
+        {/* Add a solid background for the overlay */}
+        <View style={styles.overlayBackground} />
         <View style={styles.strainOverlay}>
           <Text style={styles.strainName}>{item.name}</Text>
           <View style={styles.strainMeta}>
             <Text style={styles.strainType}>{item.type}</Text>
-            <View style={styles.thcBadge}>
-              <Text style={styles.thcText}>THC: {thcPercentage}</Text>
+            <View style={styles.cannabinoidBadges}>
+              <View style={styles.thcBadge}>
+                <Text style={styles.thcText}>THC: {thcPercentage}</Text>
+              </View>
+              <View style={styles.cbdBadge}>
+                <Text style={styles.cbdText}>CBD: {cbdPercentage}</Text>
+              </View>
             </View>
           </View>
         </View>
@@ -503,10 +514,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.15)',
     height: 240, // Add fixed height to match explore page
+    position: 'relative', // Ensure proper positioning context for absolute elements
   },
   strainImage: {
     width: '100%',
     height: '100%', // Make image take full height
+  },
+  overlayBackground: {
+    position: 'absolute',
+    bottom: 0,
+    left: -5, // Use a larger negative margin
+    right: -5, // Use a larger negative margin
+    height: 100, // Cover approximately the bottom third of the card
+    backgroundColor: 'rgba(0, 26, 18, 0.7)', // More transparent dark green background
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
   strainOverlay: {
     position: 'absolute',
@@ -514,9 +536,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Add semi-transparent background
-    borderBottomLeftRadius: 16,
-    borderBottomRightRadius: 16,
+    backgroundColor: 'transparent', // Make transparent since we have a background now
+    zIndex: 2, // Ensure overlay is above the image
   },
   strainName: {
     fontSize: 18,
@@ -531,19 +552,39 @@ const styles = StyleSheet.create({
   },
   strainType: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#D1D5DB', // Lighter color for better contrast against dark background
+    fontWeight: '500', // Slightly bolder
+  },
+  cannabinoidBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8, // Add spacing between badges
+    marginTop: 4, // Add a bit more space from the strain type
   },
   thcBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: 'rgba(16, 185, 129, 0.2)', // Slightly more opaque
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: 'rgba(16, 185, 129, 0.4)', // More visible border
   },
   thcText: {
     fontSize: 12,
     color: '#10B981',
+    fontWeight: '600',
+  },
+  cbdBadge: {
+    backgroundColor: 'rgba(79, 70, 229, 0.2)', // Slightly more opaque
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(79, 70, 229, 0.4)', // More visible border
+  },
+  cbdText: {
+    fontSize: 12,
+    color: '#6366F1',
     fontWeight: '600',
   },
   favoriteButton: {
