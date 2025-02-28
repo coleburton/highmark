@@ -13,6 +13,7 @@ import UserFavoritesScreen from '../screens/UserFavoritesScreen';
 import UserListsScreen from '../screens/UserListsScreen';
 import { ListsScreen } from '../screens/ListsScreen';
 import ExploreScreen from '../screens/ExploreScreen';
+import DebugScreen from '../screens/DebugScreen';
 import { Feather } from '@expo/vector-icons';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   UserFavorites: { userId: string };
   UserLists: { userId: string };
   ListDetail: { listId: string };
+  Debug: undefined;
 };
 
 // Define the type for the bottom tab navigator
@@ -184,7 +186,7 @@ export const Navigation = () => {
           component={StrainScreen}
           options={{
             title: '',
-            headerBackTitle: 'Home',
+            headerTransparent: true,
           }}
         />
         <Stack.Screen
@@ -237,6 +239,7 @@ export const Navigation = () => {
           }}
         />
         <Stack.Screen name="ListDetail" component={ListDetailScreen} />
+        <Stack.Screen name="Debug" component={DebugScreen} options={{ title: 'Image Debug' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

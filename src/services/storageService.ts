@@ -10,9 +10,12 @@ import { decode } from 'base64-arraybuffer';
  */
 export const uploadStrainImage = async (uri: string, strainId: string): Promise<string> => {
   try {
-    // Create a unique filename using the strain ID and timestamp
-    const filename = `${strainId.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.jpg`;
-    const filePath = `strains/${filename}`;
+    // Extract the original file extension from the URI
+    const extension = uri.split('.').pop()?.toLowerCase() || 'jpg';
+    
+    // Create a unique filename using the strain name and original extension
+    const filename = `${strainId.replace(/[^a-zA-Z0-9]/g, '_')}.${extension}`;
+    const filePath = `assets/images/strains/${filename}`;
     
     // Read the file as base64
     const fileBase64 = await FileSystem.readAsStringAsync(uri, {
@@ -22,11 +25,11 @@ export const uploadStrainImage = async (uri: string, strainId: string): Promise<
     // Convert base64 to ArrayBuffer
     const fileBuffer = decode(fileBase64);
     
-    // Upload the file to Supabase storage in the assets/images/strains/ bucket
+    // Upload the file to Supabase storage in the assets bucket
     const { data, error } = await supabase.storage
       .from('assets')
-      .upload(`images/strains/${filename}`, fileBuffer, {
-        contentType: 'image/jpeg',
+      .upload(filePath, fileBuffer, {
+        contentType: `image/${extension}`,
         upsert: true
       });
     
@@ -38,9 +41,9 @@ export const uploadStrainImage = async (uri: string, strainId: string): Promise<
     // Get the public URL of the uploaded file
     const { data: { publicUrl } } = supabase.storage
       .from('assets')
-      .getPublicUrl(`images/strains/${filename}`);
+      .getPublicUrl(filePath);
     
-    return publicUrl;
+    return publicUrl; // Return the full public URL
   } catch (error) {
     console.error('Error uploading image:', error);
     throw error;

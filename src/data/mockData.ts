@@ -59,6 +59,7 @@ export const mockStrains: Strain[] = [
     created_at: '2024-01-01T00:00:00Z',
     submitted_by: 'user-1',
     approved: true,
+    is_featured: true,
   },
   {
     id: 'strain-2',
@@ -74,6 +75,7 @@ export const mockStrains: Strain[] = [
     created_at: '2024-01-02T00:00:00Z',
     submitted_by: 'user-2',
     approved: true,
+    is_featured: true,
   },
   {
     id: 'strain-3',
@@ -89,6 +91,7 @@ export const mockStrains: Strain[] = [
     created_at: '2024-01-03T00:00:00Z',
     submitted_by: 'user-1',
     approved: true,
+    is_featured: true,
   },
   {
     id: 'strain-4',
@@ -98,12 +101,13 @@ export const mockStrains: Strain[] = [
     CBD_percentage: 0.4,
     effects: ['Relaxed', 'Sleepy', 'Happy', 'Pain Relief'],
     flavors: ['Sweet', 'Spicy', 'Earthy'],
-    images: ['assets/images/strains/s4/northern_lights_1.jpg'],
-    image_url: 'assets/images/strains/s4/northern_lights_1.jpg',
-    description: 'A classic indica strain known for its resinous buds and resilience. Northern Lights delivers a deeply relaxing experience with a sweet and spicy aroma.',
+    images: [],
+    image_url: 'assets/images/strains/s4/northern_lights_1.png',
+    description: 'A pure indica strain beloved for its resinous buds and resilience. Northern Lights delivers a deeply relaxing experience with dreamy euphoria that melts away stress and pain.',
     created_at: '2024-01-04T00:00:00Z',
-    submitted_by: 'user-3',
+    submitted_by: 'user-2',
     approved: true,
+    is_featured: true,
   },
   {
     id: 'strain-5',
@@ -113,8 +117,8 @@ export const mockStrains: Strain[] = [
     CBD_percentage: 0.1,
     effects: ['Energetic', 'Creative', 'Focused', 'Uplifted'],
     flavors: ['Pine', 'Woody', 'Citrus'],
-    images: ['assets/images/strains/s5/jack_herer_1.jpg'],
-    image_url: 'assets/images/strains/s5/jack_herer_1.jpg',
+    images: [],
+    image_url: 'assets/images/strains/s5/jack_herer_1.png',
     description: 'A sativa-dominant strain named after the cannabis activist. Jack Herer offers a clear-headed, creative experience with a spicy pine scent.',
     created_at: '2024-01-05T00:00:00Z',
     submitted_by: 'user-4',
@@ -128,8 +132,8 @@ export const mockStrains: Strain[] = [
     CBD_percentage: 0.3,
     effects: ['Happy', 'Uplifted', 'Creative', 'Energetic'],
     flavors: ['Pineapple', 'Tropical', 'Sweet'],
-    images: ['assets/images/strains/s6/pineapple_express_1.jpg'],
-    image_url: 'assets/images/strains/s6/pineapple_express_1.jpg',
+    images: [],
+    image_url: 'assets/images/strains/s6/pineapple_express_1.png',
     description: 'A tropical-flavored hybrid with a balanced high. Pineapple Express delivers a long-lasting energetic buzz perfect for productive afternoons.',
     created_at: '2024-01-06T00:00:00Z',
     submitted_by: 'user-5',
@@ -139,30 +143,30 @@ export const mockStrains: Strain[] = [
     id: 'strain-7',
     name: 'Girl Scout Cookies',
     type: 'Hybrid',
-    THC_percentage: 24,
+    THC_percentage: 25,
     CBD_percentage: 0.2,
-    effects: ['Euphoric', 'Relaxed', 'Happy', 'Creative'],
-    flavors: ['Sweet', 'Earthy', 'Mint'],
-    images: ['assets/images/strains/s7/gsc_1.jpg'],
-    image_url: 'assets/images/strains/s7/gsc_1.jpg',
-    description: 'A popular hybrid strain with a sweet and earthy aroma. Girl Scout Cookies delivers a potent combination of full-body relaxation with cerebral euphoria.',
+    effects: ['Relaxed', 'Euphoric', 'Happy', 'Creative'],
+    flavors: ['Sweet', 'Earthy', 'Dessert'],
+    images: [],
+    image_url: 'assets/images/strains/s7/gsc_1.png',
+    description: 'A popular hybrid strain known for its sweet and earthy aroma. Girl Scout Cookies provides a powerful euphoric high combined with full-body relaxation.',
     created_at: '2024-01-07T00:00:00Z',
-    submitted_by: 'user-2',
+    submitted_by: 'user-3',
     approved: true,
   },
   {
     id: 'strain-8',
     name: 'Granddaddy Purple',
     type: 'Indica',
-    THC_percentage: 20,
-    CBD_percentage: 0.4,
+    THC_percentage: 17,
+    CBD_percentage: 0.1,
     effects: ['Relaxed', 'Sleepy', 'Happy', 'Hungry'],
     flavors: ['Grape', 'Berry', 'Sweet'],
-    images: ['assets/images/strains/s8/gdp_1.jpg'],
-    image_url: 'assets/images/strains/s8/gdp_1.jpg',
-    description: 'A famous indica strain with deep purple buds. Granddaddy Purple delivers a powerful combination of cerebral euphoria and physical relaxation.',
+    images: [],
+    image_url: 'assets/images/strains/s8/gdp_1.png',
+    description: 'A famous indica strain with deep purple buds. Granddaddy Purple delivers a powerful blend of cerebral euphoria and physical relaxation.',
     created_at: '2024-01-08T00:00:00Z',
-    submitted_by: 'user-3',
+    submitted_by: 'user-2',
     approved: true,
   }
 ];
@@ -241,7 +245,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-4',
       name: 'Northern Lights',
       type: 'Indica',
-      image_url: 'assets/images/strains/s4/northern_lights_1.jpg'
+      image_url: 'assets/images/strains/s4/northern_lights_1.png'
     }
   },
   {
@@ -257,7 +261,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-5',
       name: 'Jack Herer',
       type: 'Sativa',
-      image_url: 'assets/images/strains/s5/jack_herer_1.jpg'
+      image_url: 'assets/images/strains/s5/jack_herer_1.png'
     }
   },
   {
@@ -273,7 +277,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-6',
       name: 'Pineapple Express',
       type: 'Hybrid',
-      image_url: 'assets/images/strains/s6/pineapple_express_1.jpg'
+      image_url: 'assets/images/strains/s6/pineapple_express_1.png'
     }
   },
   {
@@ -289,7 +293,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-7',
       name: 'Girl Scout Cookies',
       type: 'Hybrid',
-      image_url: 'assets/images/strains/s7/gsc_1.jpg'
+      image_url: 'assets/images/strains/s7/gsc_1.png'
     }
   },
   {
@@ -305,7 +309,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-8',
       name: 'Granddaddy Purple',
       type: 'Indica',
-      image_url: 'assets/images/strains/s8/gdp_1.jpg'
+      image_url: 'assets/images/strains/s8/gdp_1.png'
     }
   },
   {
@@ -369,7 +373,7 @@ export const mockReviews: ExtendedReview[] = [
       id: 'strain-4',
       name: 'Northern Lights',
       type: 'Indica',
-      image_url: 'assets/images/strains/s4/northern_lights_1.jpg'
+      image_url: 'assets/images/strains/s4/northern_lights_1.png'
     }
   }
 ];

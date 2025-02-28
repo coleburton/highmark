@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -7,15 +7,18 @@ import {
   StyleSheet, 
   SafeAreaView,
   StatusBar,
-  Image
+  Image,
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { mockLists, mockStrains, mockUsers } from '../data/mockData';
 import { List, Strain } from '../types';
 import { SearchBar } from '../components/SearchBar';
-import { getStrainImage } from '../utils/imageUtils';
+import { getStrainImage, getStrainImageSync } from '../utils/imageUtils';
+import { supabase } from '../lib/supabase';
 
 type RootStackParamList = {
   Lists: undefined;
@@ -139,9 +142,10 @@ export const ListsScreen = () => {
       onPress={() => navigation.navigate('Strain', { strainId: item.id })}
     >
       <Image 
-        source={item.image_url ? { uri: item.image_url } : getStrainImage(item.id)} 
+        source={getStrainImageSync(item)} 
         style={styles.strainImage} 
         resizeMode="cover"
+        onError={(e) => console.error('Image loading error in ListsScreen:', e.nativeEvent.error)}
       />
       <View style={styles.strainInfo}>
         <Text style={styles.strainName}>{item.name}</Text>
