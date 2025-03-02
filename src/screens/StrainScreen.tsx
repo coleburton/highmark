@@ -12,6 +12,7 @@ import { strainCache, reviewCache } from '../screens/HomeScreen';
 import { ImageSourcePropType } from 'react-native';
 import { DEFAULT_STRAIN_IMAGE } from '../utils/imageUtils';
 import { fixSupabaseUrl, isValidImageUrl, getSupabasePublicUrl } from '../utils/imageUtils';
+import { isStrainFavorited, toggleFavoriteStrain } from '../services/supabaseService';
 
 type RootStackParamList = {
   Home: undefined;
@@ -68,9 +69,47 @@ export const StrainScreen = ({ route, navigation }: Props) => {
   const [strainReviews, setStrainReviews] = useState<Review[]>([]);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [listModalVisible, setListModalVisible] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   
   // In a real app, this would come from the authenticated user
   const currentUserId = 'u1';
+  
+  // Check if strain is favorited
+  const checkFavoriteStatus = useCallback(async () => {
+    try {
+      const favorited = await isStrainFavorited(strainId);
+      setIsFavorite(favorited);
+    } catch (error) {
+      console.error('Error checking favorite status:', error);
+    }
+  }, [strainId]);
+  
+  // Toggle favorite status
+  const handleToggleFavorite = async () => {
+    try {
+      setFavoriteLoading(true);
+      
+      // Optimistically update UI
+      setIsFavorite(prev => !prev);
+      
+      // Update in database
+      const success = await toggleFavoriteStrain(strainId);
+      
+      if (!success) {
+        // Revert if failed
+        setIsFavorite(prev => !prev);
+        Alert.alert('Error', 'Failed to update favorite status. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
+      // Revert UI change on error
+      setIsFavorite(prev => !prev);
+      Alert.alert('Error', 'Failed to update favorite status. Please try again.');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
   
   // Fetch data function - now optimized with caching
   const fetchData = useCallback(async () => {
@@ -80,6 +119,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
       if (!reviewCache.has(strainId)) {
         await fetchReviews();
       }
+      checkFavoriteStatus();
       setLoading(false);
       return;
     }
@@ -100,6 +140,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
         
         // Get strain reviews from Supabase
         await fetchReviews();
+        await checkFavoriteStatus();
       } else {
         // Fallback to mock data if not found in Supabase
         console.log(`Strain not found in Supabase, trying mock data...`);
@@ -134,7 +175,7 @@ export const StrainScreen = ({ route, navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  }, [strainId, strain]);
+  }, [strainId, strain, checkFavoriteStatus]);
   
   // Separate function to fetch reviews
   const fetchReviews = async () => {
@@ -552,20 +593,25 @@ export const StrainScreen = ({ route, navigation }: Props) => {
             resizeMode="cover"
           />
           
-          {/* Rating overlay on image */}
-          {reviewStats.totalReviews > 0 && (
-            <View style={styles.ratingOverlay}>
-              <View style={styles.ratingContainer}>
-                <MaterialCommunityIcons name="star" size={18} color="#10B981" />
-                <Text style={styles.ratingText}>
-                  {reviewStats.averageRating.toFixed(1)}
-                </Text>
-                <Text style={styles.ratingCount}>
-                  ({reviewStats.totalReviews})
-                </Text>
-              </View>
-            </View>
-          )}
+          {/* Favorite Button */}
+          <TouchableOpacity 
+            style={[
+              styles.favoriteButton, 
+              isFavorite ? styles.favoriteButtonActive : {}
+            ]} 
+            onPress={handleToggleFavorite}
+            disabled={favoriteLoading}
+          >
+            {favoriteLoading ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <MaterialCommunityIcons 
+                name={isFavorite ? "heart" : "heart-outline"} 
+                size={24} 
+                color={isFavorite ? "#F87171" : "#FFFFFF"} 
+              />
+            )}
+          </TouchableOpacity>
           
           {/* Image gallery dots indicator - hidden since we only support single images now */}
           {false && strainImagesArray.length > 1 && (
@@ -648,19 +694,18 @@ export const StrainScreen = ({ route, navigation }: Props) => {
         )}
         
         <View style={styles.content}>
-          <View style={styles.stats}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>THC</Text>
-              <Text style={styles.statValue}>
+          <View style={styles.cannabinoidRow}>
+            <View style={styles.cannabinoidItem}>
+              <Text style={styles.cannabinoidLabel}>THC</Text>
+              <Text style={styles.cannabinoidValue}>
                 {strain.thc_percentage !== null && strain.thc_percentage !== undefined 
                   ? `${strain.thc_percentage}%` 
                   : 'N/A'}
               </Text>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>CBD</Text>
-              <Text style={styles.statValue}>
+            <View style={styles.cannabinoidItem}>
+              <Text style={styles.cannabinoidLabel}>CBD</Text>
+              <Text style={styles.cannabinoidValue}>
                 {strain.cbd_percentage !== null && strain.cbd_percentage !== undefined 
                   ? `${strain.cbd_percentage}%` 
                   : 'N/A'}
@@ -1664,22 +1709,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 2,
   },
-  actionButton: {
-    flexDirection: 'column',
-    alignItems: 'center',
+  favoriteButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: 30,
+    width: 48,
+    height: 48,
     justifyContent: 'center',
-    padding: 8,
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-    flex: 1,
-    height: 50,
+    alignItems: 'center',
+    zIndex: 10,
   },
-  actionButtonText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '600',
-    marginTop: 2,
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  cannabinoidRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  cannabinoidItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  cannabinoidLabel: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginBottom: 4,
+  },
+  cannabinoidValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
 }); 

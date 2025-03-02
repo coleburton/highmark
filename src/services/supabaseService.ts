@@ -126,21 +126,53 @@ export const isStrainFavorited = async (strainId: string): Promise<boolean> => {
     const { data: session } = await supabase.auth.getSession();
     if (!session.session?.user) return false;
 
-    const userId = session.session.user.id;
-
-    const { data, error } = await supabase
-      .from('favorites')
+    // Get the database user ID that corresponds to the auth user ID
+    const { data: userData, error: userError } = await supabase
+      .from('users')
       .select('id')
-      .eq('user_id', userId)
-      .eq('strain_id', strainId)
+      .eq('auth_id', session.session.user.id)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is the error code for no rows returned
-      console.error('Error checking if strain is favorited:', error);
+    if (userError) {
+      console.error('Error fetching user ID:', userError);
       return false;
     }
 
-    return !!data;
+    const userId = userData.id;
+
+    // Try to check with is_favorite column
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('strain_id', strainId)
+        .eq('is_favorite', true)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is the error code for no rows returned
+        console.error('Error checking if strain is favorited:', error);
+        return false;
+      }
+
+      return !!data;
+    } catch (columnError) {
+      // If the is_favorite column doesn't exist yet, fall back to the old query
+      console.warn('Falling back to old favorites check without is_favorite filter');
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('strain_id', strainId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking if strain is favorited:', error);
+        return false;
+      }
+
+      return !!data;
+    }
   } catch (error) {
     console.error('Error in isStrainFavorited:', error);
     return false;
@@ -157,12 +189,24 @@ export const toggleFavoriteStrain = async (strainId: string): Promise<boolean> =
     const { data: session } = await supabase.auth.getSession();
     if (!session.session?.user) return false;
 
-    const userId = session.session.user.id;
+    // Get the database user ID that corresponds to the auth user ID
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', session.session.user.id)
+      .single();
 
-    // Check if the strain is already favorited
+    if (userError) {
+      console.error('Error fetching user ID:', userError);
+      return false;
+    }
+
+    const userId = userData.id;
+
+    // Check if the strain is already in favorites (either as favorite or try later)
     const { data: existingFavorite, error: checkError } = await supabase
       .from('favorites')
-      .select('id')
+      .select('*')
       .eq('user_id', userId)
       .eq('strain_id', strainId)
       .single();
@@ -173,21 +217,53 @@ export const toggleFavoriteStrain = async (strainId: string): Promise<boolean> =
     }
 
     if (existingFavorite) {
-      // Remove favorite
-      const { error: deleteError } = await supabase
-        .from('favorites')
-        .delete()
-        .eq('id', existingFavorite.id);
+      // If it exists and is_favorite is true, toggle it off
+      if (existingFavorite.is_favorite) {
+        // If it's also marked as try_later, just update is_favorite to false
+        if (existingFavorite.is_try_later) {
+          const { error: updateError } = await supabase
+            .from('favorites')
+            .update({ is_favorite: false })
+            .eq('id', existingFavorite.id);
 
-      if (deleteError) {
-        console.error('Error removing favorite:', deleteError);
-        return false;
+          if (updateError) {
+            console.error('Error updating favorite:', updateError);
+            return false;
+          }
+        } else {
+          // If it's not marked as try_later, delete the record
+          const { error: deleteError } = await supabase
+            .from('favorites')
+            .delete()
+            .eq('id', existingFavorite.id);
+
+          if (deleteError) {
+            console.error('Error removing favorite:', deleteError);
+            return false;
+          }
+        }
+      } else {
+        // If it exists but is_favorite is false, set it to true
+        const { error: updateError } = await supabase
+          .from('favorites')
+          .update({ is_favorite: true })
+          .eq('id', existingFavorite.id);
+
+        if (updateError) {
+          console.error('Error updating favorite:', updateError);
+          return false;
+        }
       }
     } else {
-      // Add favorite
+      // Add new favorite
       const { error: insertError } = await supabase
         .from('favorites')
-        .insert([{ user_id: userId, strain_id: strainId }]);
+        .insert([{ 
+          user_id: userId, 
+          strain_id: strainId,
+          is_favorite: true,
+          is_try_later: false
+        }]);
 
       if (insertError) {
         console.error('Error adding favorite:', insertError);
@@ -211,19 +287,49 @@ export const getUserFavoriteStrains = async (): Promise<string[]> => {
     const { data: session } = await supabase.auth.getSession();
     if (!session.session?.user) return [];
 
-    const userId = session.session.user.id;
+    // Get the database user ID that corresponds to the auth user ID
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('auth_id', session.session.user.id)
+      .single();
 
-    const { data, error } = await supabase
-      .from('favorites')
-      .select('strain_id')
-      .eq('user_id', userId);
-
-    if (error) {
-      console.error('Error fetching user favorite strains:', error);
+    if (userError) {
+      console.error('Error fetching user ID:', userError);
       return [];
     }
 
-    return data?.map(item => item.strain_id) || [];
+    const userId = userData.id;
+
+    // Try to filter by is_favorite=true
+    try {
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('strain_id')
+        .eq('user_id', userId)
+        .eq('is_favorite', true);
+
+      if (error) {
+        console.error('Error fetching user favorite strains:', error);
+        return [];
+      }
+
+      return data?.map(item => item.strain_id) || [];
+    } catch (columnError) {
+      // If the is_favorite column doesn't exist yet, fall back to the old query
+      console.warn('Falling back to old favorites query without is_favorite filter');
+      const { data, error } = await supabase
+        .from('favorites')
+        .select('strain_id')
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('Error fetching user favorite strains:', error);
+        return [];
+      }
+
+      return data?.map(item => item.strain_id) || [];
+    }
   } catch (error) {
     console.error('Error in getUserFavoriteStrains:', error);
     return [];

@@ -9,21 +9,23 @@ import {
   StatusBar,
   Image,
   TextInput,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { mockLists, mockStrains, mockUsers } from '../data/mockData';
 import { List, Strain } from '../types';
 import { SearchBar } from '../components/SearchBar';
 import { getStrainImage, getStrainImageSync } from '../utils/imageUtils';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../hooks/useAuth';
 
 type RootStackParamList = {
   Lists: undefined;
   ListDetail: { listId: string };
   Strain: { strainId: string };
+  CreateList: undefined;
 };
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -32,27 +34,300 @@ export const ListsScreen = () => {
   const navigation = useNavigation<NavigationProp>();
   const [activeTab, setActiveTab] = useState<'lists' | 'try' | 'favorites'>('lists');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [userLists, setUserLists] = useState<List[]>([]);
+  const [favoriteStrains, setFavoriteStrains] = useState<Strain[]>([]);
+  const [tryLaterStrains, setTryLaterStrains] = useState<Strain[]>([]);
+  const [databaseUserId, setDatabaseUserId] = useState<string | null>(null);
   
-  // In a real app, you would get the current user ID from authentication
-  const currentUserId = 'user-1';
+  // Get the current user from auth context
+  const { user } = useAuth();
+  const authUserId = user?.id;
   
-  // Get user's lists
-  const userLists = useMemo(() => {
-    return mockLists.filter(list => list.user_id === currentUserId);
-  }, [currentUserId]);
+  // Get the database user ID that corresponds to the auth user ID
+  const fetchDatabaseUserId = useCallback(async () => {
+    if (!authUserId) return null;
+    
+    try {
+      console.log('Fetching database user ID for auth ID:', authUserId);
+      
+      const { data, error } = await supabase
+        .from('users')
+        .select('id')
+        .eq('auth_id', authUserId)
+        .single();
+      
+      if (error) {
+        if (error.code === 'PGRST116') { // No rows returned
+          console.warn('No user record found for auth ID:', authUserId);
+          return null;
+        }
+        throw error;
+      }
+      
+      if (!data) {
+        console.warn('No user record found for auth ID:', authUserId);
+        return null;
+      }
+      
+      console.log('Found database user ID:', data.id);
+      return data.id;
+    } catch (error) {
+      console.error('Error fetching database user ID:', error);
+      return null;
+    }
+  }, [authUserId]);
   
-  // Get strains marked as "try later"
-  // In a real app, you would have a separate table or field for this
-  // For now, we'll just use the first few strains as an example
-  const tryLaterStrains = useMemo(() => {
-    return mockStrains.slice(0, 3);
-  }, []);
+  // Fetch user's lists
+  const fetchUserLists = useCallback(async () => {
+    if (!databaseUserId) return;
+    
+    try {
+      console.log('Fetching lists for user ID:', databaseUserId);
+      
+      const { data, error } = await supabase
+        .from('lists')
+        .select('*')
+        .eq('user_id', databaseUserId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      if (!data || data.length === 0) {
+        setUserLists([]);
+        return;
+      }
+      
+      // For each list, fetch the strains
+      const listsWithStrains = await Promise.all(
+        data.map(async (list) => {
+          try {
+            const { data: listStrains, error: listStrainsError } = await supabase
+              .from('list_strains')
+              .select('strain_id')
+              .eq('list_id', list.id);
+            
+            if (listStrainsError) {
+              console.error('Error fetching strains for list:', list.id, listStrainsError);
+              return {
+                ...list,
+                strains: []
+              };
+            }
+            
+            return {
+              ...list,
+              strains: (listStrains || []).map(item => item.strain_id)
+            };
+          } catch (err) {
+            console.error('Error processing list:', list.id, err);
+            return {
+              ...list,
+              strains: []
+            };
+          }
+        })
+      );
+      
+      setUserLists(listsWithStrains);
+    } catch (error) {
+      console.error('Error fetching user lists:', error);
+      // Don't show alert for this error as it's not critical
+      setUserLists([]);
+    }
+  }, [databaseUserId]);
   
-  // Get favorite strains
-  // For this example, we'll use a different set of strains
-  const favoriteStrains = useMemo(() => {
-    return mockStrains.slice(3, 7);
-  }, []);
+  // Fetch user's favorite strains
+  const fetchFavoriteStrains = useCallback(async () => {
+    if (!databaseUserId) return;
+    
+    try {
+      console.log('Fetching favorites for user ID:', databaseUserId);
+      
+      // First get the favorite strain IDs
+      // Try to use is_favorite column if it exists
+      let query = supabase
+        .from('favorites')
+        .select('strain_id')
+        .eq('user_id', databaseUserId);
+      
+      // Try to add is_favorite filter if the column exists
+      try {
+        query = query.eq('is_favorite', true);
+      } catch (e) {
+        // If the column doesn't exist, just continue without the filter
+        console.log('is_favorite column might not exist, continuing without filter');
+      }
+      
+      const { data: favoriteIds, error: favoritesError } = await query;
+      
+      if (favoritesError) {
+        // Check if the error is because the column doesn't exist
+        if (favoritesError.message && favoritesError.message.includes('column "is_favorite" does not exist')) {
+          console.log('The is_favorite column does not exist in the favorites table');
+          // Just get all favorites without filtering
+          const { data: allFavorites, error: allFavoritesError } = await supabase
+            .from('favorites')
+            .select('strain_id')
+            .eq('user_id', databaseUserId);
+          
+          if (allFavoritesError) throw allFavoritesError;
+          
+          if (!allFavorites || allFavorites.length === 0) {
+            setFavoriteStrains([]);
+            return;
+          }
+          
+          // Use these favorites
+          const strainIds = allFavorites.map(fav => fav.strain_id);
+          const { data: strains, error: strainsError } = await supabase
+            .from('strains')
+            .select('*')
+            .in('id', strainIds);
+          
+          if (strainsError) throw strainsError;
+          
+          setFavoriteStrains(strains || []);
+          return;
+        }
+        throw favoritesError;
+      }
+      
+      if (!favoriteIds || favoriteIds.length === 0) {
+        setFavoriteStrains([]);
+        return;
+      }
+      
+      // Then fetch the strain details
+      const strainIds = favoriteIds.map(fav => fav.strain_id);
+      const { data: strains, error: strainsError } = await supabase
+        .from('strains')
+        .select('*')
+        .in('id', strainIds);
+      
+      if (strainsError) throw strainsError;
+      
+      setFavoriteStrains(strains || []);
+    } catch (error) {
+      console.error('Error fetching favorite strains:', error);
+      // Don't show alert for this error as it's not critical
+      setFavoriteStrains([]);
+    }
+  }, [databaseUserId]);
+  
+  // For "Try Later" functionality, we'll use the favorites table with a special flag
+  // This is a workaround since there's no dedicated "try later" table and we're having RLS issues with lists
+  const fetchTryLaterStrains = useCallback(async () => {
+    if (!databaseUserId) return;
+    
+    try {
+      console.log('Fetching try later strains for user ID:', databaseUserId);
+      
+      // We'll use the favorites table with a special flag for "try later"
+      // First get the try later strain IDs
+      const { data: tryLaterIds, error: tryLaterError } = await supabase
+        .from('favorites')
+        .select('strain_id')
+        .eq('user_id', databaseUserId)
+        .eq('is_try_later', true);
+      
+      if (tryLaterError) {
+        // Check if the error is because the column doesn't exist
+        if (tryLaterError.message && tryLaterError.message.includes('column "is_try_later" does not exist')) {
+          console.log('The is_try_later column does not exist in the favorites table');
+          // Fall back to an empty array
+          setTryLaterStrains([]);
+          
+          // Show a message to the user
+          Alert.alert(
+            'Feature Not Available',
+            'The "Try Later" feature is currently under development. Please check back later.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+        throw tryLaterError;
+      }
+      
+      if (!tryLaterIds || tryLaterIds.length === 0) {
+        setTryLaterStrains([]);
+        return;
+      }
+      
+      // Then fetch the strain details
+      const strainIds = tryLaterIds.map(item => item.strain_id);
+      const { data: strains, error: strainsError } = await supabase
+        .from('strains')
+        .select('*')
+        .in('id', strainIds);
+      
+      if (strainsError) throw strainsError;
+      
+      setTryLaterStrains(strains || []);
+    } catch (error) {
+      console.error('Error fetching try later strains:', error);
+      // Don't show alert for this error as it's not critical
+      setTryLaterStrains([]);
+    }
+  }, [databaseUserId]);
+  
+  // Load all data
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      try {
+        // First, get the database user ID
+        if (authUserId) {
+          const userId = await fetchDatabaseUserId();
+          setDatabaseUserId(userId);
+          
+          // If we have a database user ID, fetch the data
+          if (userId) {
+            await Promise.all([
+              fetchUserLists(),
+              fetchFavoriteStrains(),
+              fetchTryLaterStrains()
+            ]);
+          } else {
+            // If no database user ID, reset all data
+            setUserLists([]);
+            setFavoriteStrains([]);
+            setTryLaterStrains([]);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Errors are already handled in individual fetch functions
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
+  }, [authUserId, fetchDatabaseUserId]);
+  
+  // Reload data when database user ID changes
+  useEffect(() => {
+    if (databaseUserId) {
+      const loadDataForUser = async () => {
+        setIsLoading(true);
+        try {
+          await Promise.all([
+            fetchUserLists(),
+            fetchFavoriteStrains(),
+            fetchTryLaterStrains()
+          ]);
+        } catch (error) {
+          console.error('Error loading data for user:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      loadDataForUser();
+    }
+  }, [databaseUserId, fetchUserLists, fetchFavoriteStrains, fetchTryLaterStrains]);
   
   // Filter lists based on search query
   const filteredLists = useMemo(() => {
@@ -92,9 +367,17 @@ export const ListsScreen = () => {
     // In a real app, you might want to do something else here
   };
   
+  const handleCreateList = () => {
+    // Navigate to the CreateList screen
+    navigation.navigate('CreateList');
+  };
+  
   const renderListItem = ({ item }: { item: List }) => {
     // Get the number of strains in the list
-    const strainCount = item.strains.length;
+    const strainCount = item.strains ? item.strains.length : 0;
+    
+    // Skip the "Try Later" list in the lists tab
+    if (item.title === 'Try Later') return null;
     
     return (
       <TouchableOpacity 
@@ -142,7 +425,7 @@ export const ListsScreen = () => {
       onPress={() => navigation.navigate('Strain', { strainId: item.id })}
     >
       <Image 
-        source={getStrainImageSync(item)} 
+        source={item.image_url ? { uri: item.image_url } : getStrainImageSync(item)} 
         style={styles.strainImage} 
         resizeMode="cover"
         onError={(e) => console.error('Image loading error in ListsScreen:', e.nativeEvent.error)}
@@ -151,8 +434,8 @@ export const ListsScreen = () => {
         <Text style={styles.strainName}>{item.name}</Text>
         <Text style={styles.strainType}>{item.type}</Text>
         <View style={styles.percentages}>
-          <Text style={styles.thc}>THC: {item.THC_percentage}%</Text>
-          <Text style={styles.cbd}>CBD: {item.CBD_percentage}%</Text>
+          <Text style={styles.thc}>THC: {item.thc_percentage || 0}%</Text>
+          <Text style={styles.cbd}>CBD: {item.cbd_percentage || 0}%</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -165,7 +448,7 @@ export const ListsScreen = () => {
       <Text style={styles.emptyText}>
         Create your first list to organize your favorite strains
       </Text>
-      <TouchableOpacity style={styles.createButton}>
+      <TouchableOpacity style={styles.createButton} onPress={handleCreateList}>
         <Text style={styles.createButtonText}>Create New List</Text>
       </TouchableOpacity>
     </View>
@@ -190,6 +473,150 @@ export const ListsScreen = () => {
       </Text>
     </View>
   );
+  
+  // Add a strain to the "Try Later" list
+  const addToTryLater = async (strainId: string) => {
+    if (!databaseUserId) {
+      Alert.alert('Error', 'You must be logged in to add strains to your Try Later list');
+      return;
+    }
+    
+    try {
+      // Check if the strain is already in favorites
+      const { data: existingFavorite, error: checkError } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', databaseUserId)
+        .eq('strain_id', strainId)
+        .single();
+      
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw checkError;
+      }
+      
+      if (existingFavorite) {
+        // Update the existing favorite to mark it as try later
+        const { error: updateError } = await supabase
+          .from('favorites')
+          .update({ is_try_later: true })
+          .eq('id', existingFavorite.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        // Insert a new favorite with try later flag
+        const { error: insertError } = await supabase
+          .from('favorites')
+          .insert({
+            user_id: databaseUserId,
+            strain_id: strainId,
+            is_try_later: true
+          });
+        
+        if (insertError) {
+          if (insertError.code === '42501') { // RLS policy violation
+            Alert.alert('Permission Issue', 'You do not have permission to add strains to your Try Later list');
+            return;
+          }
+          throw insertError;
+        }
+      }
+      
+      // Refresh the try later strains
+      fetchTryLaterStrains();
+      
+      Alert.alert('Success', 'Strain added to your Try Later list');
+    } catch (error) {
+      console.error('Error adding strain to Try Later:', error);
+      Alert.alert('Error', 'Failed to add strain to your Try Later list');
+    }
+  };
+  
+  // Remove a strain from the "Try Later" list
+  const removeFromTryLater = async (strainId: string) => {
+    if (!databaseUserId) return;
+    
+    try {
+      // Find the favorite entry
+      const { data: favorite, error: findError } = await supabase
+        .from('favorites')
+        .select('*')
+        .eq('user_id', databaseUserId)
+        .eq('strain_id', strainId)
+        .eq('is_try_later', true)
+        .single();
+      
+      if (findError) {
+        if (findError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          throw findError;
+        }
+        return; // Nothing to remove
+      }
+      
+      if (!favorite) return; // Nothing to remove
+      
+      // Check if is_favorite exists and is true
+      const isFavorite = favorite.is_favorite !== undefined && favorite.is_favorite === true;
+      
+      // If the entry is also a favorite, just update the is_try_later flag
+      if (isFavorite) {
+        const { error: updateError } = await supabase
+          .from('favorites')
+          .update({ is_try_later: false })
+          .eq('id', favorite.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        // If it's not a favorite, delete the entry
+        const { error: deleteError } = await supabase
+          .from('favorites')
+          .delete()
+          .eq('id', favorite.id);
+        
+        if (deleteError) throw deleteError;
+      }
+      
+      // Refresh the try later strains
+      fetchTryLaterStrains();
+    } catch (error) {
+      console.error('Error removing strain from Try Later:', error);
+      Alert.alert('Error', 'Failed to remove strain from your Try Later list');
+    }
+  };
+  
+  if (!authUserId) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#121212" />
+        <View style={styles.container}>
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="account-alert" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>Not Logged In</Text>
+            <Text style={styles.emptyText}>
+              Please log in to view and manage your lists
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
+  // Show a message if the user is logged in but doesn't have a database record
+  if (authUserId && !databaseUserId && !isLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="light-content" backgroundColor="#121212" />
+        <View style={styles.container}>
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="account-alert" size={64} color="#9CA3AF" />
+            <Text style={styles.emptyTitle}>Account Setup Incomplete</Text>
+            <Text style={styles.emptyText}>
+              Your account is not fully set up. Please complete the onboarding process or contact support.
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -271,15 +698,20 @@ export const ListsScreen = () => {
           />
         </View>
         
-        {/* Content */}
-        {activeTab === 'lists' ? (
+        {/* Loading Indicator */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#10B981" />
+            <Text style={styles.loadingText}>Loading your data...</Text>
+          </View>
+        ) : activeTab === 'lists' ? (
           <>
             {/* Lists Tab Content */}
             <View style={styles.listHeaderRow}>
               <Text style={styles.listCount}>
-                {filteredLists.length} {filteredLists.length === 1 ? 'List' : 'Lists'}
+                {filteredLists.filter(list => list.title !== 'Try Later').length} {filteredLists.filter(list => list.title !== 'Try Later').length === 1 ? 'List' : 'Lists'}
               </Text>
-              <TouchableOpacity style={styles.newListButton}>
+              <TouchableOpacity style={styles.newListButton} onPress={handleCreateList}>
                 <MaterialCommunityIcons name="plus" size={20} color="#FFFFFF" />
                 <Text style={styles.newListText}>New List</Text>
               </TouchableOpacity>
@@ -591,6 +1023,16 @@ const styles = StyleSheet.create({
   createButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+    fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    color: '#FFFFFF',
+    marginTop: 12,
     fontSize: 16,
   },
 }); 

@@ -12,6 +12,8 @@ import UserReviewsScreen from '../screens/UserReviewsScreen';
 import UserFavoritesScreen from '../screens/UserFavoritesScreen';
 import UserListsScreen from '../screens/UserListsScreen';
 import { ListsScreen } from '../screens/ListsScreen';
+import { CreateListScreen } from '../screens/CreateListScreen';
+import { ListDetailScreen } from '../screens/ListDetailScreen';
 import ExploreScreen from '../screens/ExploreScreen';
 import DebugScreen from '../screens/DebugScreen';
 import { Feather } from '@expo/vector-icons';
@@ -32,6 +34,7 @@ export type RootStackParamList = {
   UserFavorites: { userId: string };
   UserLists: { userId: string };
   ListDetail: { listId: string };
+  CreateList: undefined;
   Debug: undefined;
 };
 
@@ -53,17 +56,6 @@ const Tab = createBottomTabNavigator<TabStackParamList>();
 //     <Text style={{ color: '#fff', fontSize: 18 }}>Lists Coming Soon</Text>
 //   </View>
 // );
-
-// Placeholder screen for ListDetail
-const ListDetailScreen = ({ route }: { route: RouteProp<RootStackParamList, 'ListDetail'> }) => {
-  const { listId } = route.params;
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' }}>
-      <Text style={{ color: '#fff', fontSize: 18 }}>List Details Coming Soon</Text>
-      <Text style={{ color: '#9CA3AF', fontSize: 14, marginTop: 8 }}>List ID: {listId}</Text>
-    </View>
-  );
-};
 
 const MainTabs = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -128,7 +120,7 @@ const MainTabs = () => {
                 shadowRadius: 3,
                 elevation: 5,
               }}
-              onPress={() => navigation.navigate('AddReview')}
+              onPress={() => navigation.navigate('AddReview', {})}
             >
               <Feather name="plus" size={24} color="#fff" />
             </TouchableOpacity>
@@ -239,6 +231,13 @@ export const Navigation = () => {
           }}
         />
         <Stack.Screen name="ListDetail" component={ListDetailScreen} />
+        <Stack.Screen
+          name="CreateList"
+          component={CreateListScreen}
+          options={{
+            title: 'Create List',
+          }}
+        />
         <Stack.Screen name="Debug" component={DebugScreen} options={{ title: 'Image Debug' }} />
       </Stack.Navigator>
     </NavigationContainer>

@@ -208,6 +208,9 @@ export const HomeScreen = () => {
       ? `${item.cbd_percentage}%` 
       : 'N/A';
     
+    // Check if this strain is in the user's favorites
+    const isFavorite = favoriteStrains.includes(item.id);
+    
     return (
       <TouchableOpacity
         style={[styles.strainCard, { width: cardWidth }]}
@@ -245,16 +248,19 @@ export const HomeScreen = () => {
           </View>
         </View>
         <TouchableOpacity 
-          style={styles.favoriteButton} 
+          style={[
+            styles.favoriteButton,
+            isFavorite ? styles.favoriteButtonActive : {}
+          ]} 
           onPress={(e) => {
             e.stopPropagation();
             handleToggleFavorite(item.id);
           }}
         >
           <MaterialCommunityIcons 
-            name={favoriteStrains.includes(item.id) ? "heart" : "heart-outline"} 
+            name={isFavorite ? "heart" : "heart-outline"} 
             size={24} 
-            color={favoriteStrains.includes(item.id) ? "#E57CAA" : "#FFFFFF"} 
+            color={isFavorite ? "#F87171" : "#FFFFFF"} 
           />
         </TouchableOpacity>
       </TouchableOpacity>
@@ -575,12 +581,19 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   favoriteButton: {
-    position: 'absolute', // Position the favorite button
+    position: 'absolute',
     top: 12,
     right: 12,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Add semi-transparent background
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
-    padding: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  favoriteButtonActive: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
   },
   reviewList: {
     flex: 1,
